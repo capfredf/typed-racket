@@ -48,14 +48,14 @@
              (format "field `~a' requires a type annotation"
                      (syntax-e #'fld))
              #:with form 'dummy))
-  
+
   (define-syntax-class struct-name
     #:description "struct name (with optional super-struct name)"
     #:attributes (name super)
     (pattern (name:id super:id))
     (pattern name:id
              #:with super #f))
-  
+
   (define-splicing-syntax-class struct-name/new
     #:description "struct name (with optional super-struct name)"
     (pattern (~seq name:id super:id)
@@ -236,4 +236,3 @@
               #'(define constructor (lambda (x) x)))
            #,(internal (syntax/loc stx
                          (define-new-subtype-internal ty (constructor rep-ty) #:gen-id gen-id))))])))
-

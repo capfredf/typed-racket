@@ -50,8 +50,10 @@
 ;; mutable: Any
 ;; parent-mutable: Any
 ;; proc-ty: (Option Type)
+;; prop-tys:
 (struct struct-desc (parent-fields self-fields tvars
-                     mutable parent-mutable proc-ty)
+                     mutable parent-mutable proc-ty
+                     props)
         #:transparent)
 
 (define (struct-desc-all-fields fields)
@@ -105,7 +107,7 @@
 (define/cond-contract (get-flds p)
   (c:-> (c:or/c Struct? #f) (c:listof fld?))
   (match p
-    [(Struct: _ _ flds _ _ _) flds]
+    [(Struct: _ _ flds _ _ _ _) flds]
     [#f null]))
 
 
@@ -121,7 +123,8 @@
     (make-Struct (struct-names-struct-name names)
                  parent flds (struct-desc-proc-ty desc)
                  (not (null? (struct-desc-tvars desc)))
-                 (struct-names-predicate names))))
+                 (struct-names-predicate names)
+                 (struct-desc-props desc))))
 
 
 ;; construct all the various types for structs, and then register the appropriate names
@@ -155,7 +158,7 @@
   (match-define
     (struct-desc parent-fields self-fields
                  constructor-tvars
-                 self-mutable parent-mutable _)
+                 self-mutable parent-mutable _ _)
     desc)
   (define any-mutable (or self-mutable parent-mutable))
   (define all-fields (append parent-fields self-fields))
@@ -170,7 +173,7 @@
     (make-Prefab key field-tvar-Fs))
 
   (define prefab-top-type (make-PrefabTop key))
-  
+
   (define bindings
     (list*
      ;; the list of names w/ types
@@ -372,7 +375,8 @@
                    #:extra-maker [extra-maker #f]
                    #:mutable [mutable #f]
                    #:type-only [type-only #f]
-                   #:prefab? [prefab? #f])
+                   #:prefab? [prefab? #f]
+                   #:props [props null])
   ;; parent field types can't actually be determined here
   (define-values (nm parent-name parent) (parse-parent nm/par prefab?))
   ;; create type variables for the new type parameters
@@ -420,7 +424,7 @@
               (= num-fields (vector-length mutable))]
              ['() #f]))
          (define desc
-           (struct-desc parent-fields types tvars mutable parent-mutable #f))
+           (struct-desc parent-fields types tvars mutable parent-mutable #f props))
          (parsed-struct (make-Prefab key (append parent-fields types))
                         names desc (struct-info-property nm/par) #f)]
         [else
@@ -433,22 +437,23 @@
                      maybe-parsed-proc-ty]
                     [else (expected-but-got top-func maybe-parsed-proc-ty)
                           #f]))))
-         
+
          (define parent-mutable
            ;; Only valid as long as typed structs must be
            ;; either fully mutable or fully immutable
            (or (not parent)
                (andmap fld-mutable? (get-flds concrete-parent))))
-         
+
          (define desc (struct-desc
                        (map fld-t (get-flds concrete-parent))
                        types
                        tvars
                        mutable
                        parent-mutable
-                       maybe-proc-ty))
+                       maybe-proc-ty
+                       null)) ;; TODO provide the correct props? HOW?
          (define sty (mk/inner-struct-type names desc concrete-parent))
-         
+
          (parsed-struct sty names desc (struct-info-property nm/par) type-only)]))
 
 ;; register a struct type
@@ -458,16 +463,16 @@
 ;;                     -> void
 ;; FIXME - figure out how to make this lots lazier
 (define/cond-contract (tc/builtin-struct nm parent fld-names tys kernel-maker)
-     (c:-> identifier? (c:or/c #f identifier?) (c:listof identifier?)
-           (c:listof Type?) (c:or/c #f identifier?)
-           c:any/c)
+  (c:-> identifier? (c:or/c #f identifier?) (c:listof identifier?)
+        (c:listof Type?) (c:or/c #f identifier?)
+        c:any/c)
   (define parent-type
     (and parent (resolve-name (make-Name parent 0 #t))))
   (define parent-tys (map fld-t (get-flds parent-type)))
 
   (define names (get-struct-names nm nm fld-names #f #f))
   ;; built-in structs are assumed to be immutable with immutable parents
-  (define desc (struct-desc parent-tys tys null #f #f #f))
+  (define desc (struct-desc parent-tys tys null #f #f #f null))
   (define sty (mk/inner-struct-type names desc parent-type))
 
   (register-sty! sty names desc)
@@ -477,6 +482,7 @@
 
 ;; syntax for tc/builtin-struct
 (define-syntax (d-s stx)
+  (displayln stx)
   (define-splicing-syntax-class options
    (pattern (~optional (~seq #:kernel-maker maker:id))
             #:attr kernel-maker (if (attribute maker) #'(quote-syntax maker) #'#f)))
