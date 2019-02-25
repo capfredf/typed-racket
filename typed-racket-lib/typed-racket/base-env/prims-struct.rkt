@@ -31,6 +31,7 @@
 
 (provide define-typed-struct -struct define-typed-struct/exec dtsi* dtsi/exec*
          define-type-alias define-new-subtype
+         check-prop-values
          (for-syntax type-name-error))
 
 (define-for-syntax (with-type* expr ty)
@@ -142,6 +143,10 @@
             (mk #'define-typed-struct/exec-internal))))
 
 
+(define-syntax (check-prop-values stx)
+  (syntax-parse stx
+    [(_ id) (display "100101-") (displayln #'id) #'10]))
+
 ;; User-facing macros for defining typed structure types
 (define-syntax (define-typed-struct stx)
   (syntax-parse stx
@@ -176,8 +181,9 @@
                             #'())]
            [properties (if (not (empty? (attribute opts.prop)))
                            #`(#,@(append* (for/list ([prop (in-list (attribute opts.prop))]
-                                                     [prop-val (in-list (attribute opts.prop-val))])
-                                            (list #'#:property prop prop-val))))
+                                                     #;[prop-val (in-list (attribute opts.prop-val))]
+                                                     [idx (in-range (length (attribute opts.prop-val)))])
+                                            (list #'#:property prop #`(list-ref prop-val-li #,idx)))))
                            #'())])
        (with-syntax* ([type (or (attribute opts.type) #'nm.name)]
                       [d-s (ignore (quasisyntax/loc stx
@@ -201,7 +207,7 @@
          (displayln "hahahah dtsi")
          (displayln #'d-s)
          (displayln #'dtsi)
-         #'(begin d-s stx-err-fun dtsi)))]))
+         #'(begin d-s stx-err-fun prop-vals (check-prop-values prop-vals) dtsi)))]))
 
 ;; this has to live here because it's used below
 (define-syntax (define-type-alias stx)
