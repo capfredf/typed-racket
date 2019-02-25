@@ -171,6 +171,7 @@
   (syntax-parse stx
     [(_ vars:maybe-type-vars nm:struct-name/new (fs:fld-spec ...)
         opts:struct-options)
+     #:with val-li-name (format-id stx "~a-prop-val-li" #'nm.name)
      (let ([mutable? (if (attribute opts.mutable?) #'(#:mutable) #'())]
            [prefab? (if (attribute opts.prefab?) #'(#:prefab) #'())]
            [maker (if (attribute opts.cname)
@@ -183,14 +184,14 @@
                            #`(#,@(append* (for/list ([prop (in-list (attribute opts.prop))]
                                                      #;[prop-val (in-list (attribute opts.prop-val))]
                                                      [idx (in-range (length (attribute opts.prop-val)))])
-                                            (list #'#:property prop #`(list-ref prop-val-li #,idx)))))
+                                            (list #'#:property prop #`(list-ref val-li-name #,idx)))))
                            #'())])
        (with-syntax* ([type (or (attribute opts.type) #'nm.name)]
                       [d-s (ignore (quasisyntax/loc stx
                                      (struct #,@(attribute nm.new-spec) (fs.fld ...)
                                        . opts.untyped)))]
                       [prop-vals (quasisyntax/loc stx
-                                   (define prop-val-li (list #,@(attribute opts.prop-val))))]
+                                   (define val-li-name (list #,@(attribute opts.prop-val))))]
                       [stx-err-fun (if (not (free-identifier=? #'nm.name #'type))
                                        (syntax/loc stx
                                          (define-syntax type type-name-error))
@@ -207,7 +208,7 @@
          (displayln "hahahah dtsi")
          (displayln #'d-s)
          (displayln #'dtsi)
-         #'(begin d-s stx-err-fun prop-vals (check-prop-values prop-vals) dtsi)))]))
+         #'(begin prop-vals d-s stx-err-fun (check-prop-values prop-vals) dtsi)))]))
 
 ;; this has to live here because it's used below
 (define-syntax (define-type-alias stx)

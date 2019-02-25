@@ -174,7 +174,8 @@
           (let ([ts (map (λ (x) (get-type x #:infer #f)) vars)])
             (for ([var (in-list vars)]
                   [t (in-list ts)])
-              (register-type-if-undefined var (add-extracted-props-to-lexical-env (-id-path var) t)))
+              (register-type-if-undefined var (add-extracted-props-to-lexical-env (-id-path var) t))
+              (lookup-id-type/lexical var))
             (map make-def-binding vars ts))]
          ;; if this already had an annotation, we just construct the binding reps
          [(v:typed-id^ ...)
@@ -187,7 +188,9 @@
                      [t (in-list (attribute v.type))])
             (make-def-binding var (add-extracted-props-to-lexical-env (-id-path var) t)))]
          ;; defer to pass1.5
-         [_ (list)])]
+         [_               (displayln "-----------")
+                          (displayln #'(var ...))
+                          (list)])]
 
       ;; to handle the top-level, we have to recur into begins
       [(begin . rest)
@@ -409,6 +412,8 @@
   (define struct-bindings (map register-parsed-struct-bindings! parsed-structs))
 
   (do-time "before pass1")
+  (displayln 'pass1)
+
   ;; do pass 1, and collect the defintions
   (define *defs (apply append
                        (append
@@ -416,6 +421,7 @@
                         (map tc-toplevel/pass1 forms))))
   ;; do pass 1.5 to finish up the definitions
   (define defs (append *defs (apply append (map tc-toplevel/pass1.5 forms))))
+  (displayln 'a-pass1.5)
   (do-time "Finished pass1")
   ;; separate the definitions into structures we'll handle for provides
   ;; def-tbl : hash[id, binding]
@@ -441,6 +447,7 @@
   ;; typecheck the expressions and the rhss of defintions
   ;(displayln "Starting pass2")
   (for-each tc-toplevel/pass2 forms)
+  (displayln 'a-pass2)
   (do-time "Finished pass2")
   ;; check that declarations correspond to definitions
   ;; and that any additional parsed apps are sensible
