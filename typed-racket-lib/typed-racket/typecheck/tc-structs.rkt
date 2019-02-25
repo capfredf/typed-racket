@@ -9,12 +9,13 @@
          (types abbrev subtype utils resolve substitute struct-table)
          (env global-env type-name-env type-alias-env tvar-env)
          (utils tc-utils prefab identifier)
-         (typecheck def-binding internal-forms error-message)
+         (typecheck typechecker def-binding internal-forms error-message)
          (for-syntax syntax/parse racket/base))
 
 (require-for-cond-contract racket/struct-info)
 
 (provide tc/struct
+         tc/struct-property-values
          name-of-struct d-s
          refine-struct-variance!
          register-parsed-struct-sty!
@@ -50,10 +51,10 @@
 ;; mutable: Any
 ;; parent-mutable: Any
 ;; proc-ty: (Option Type)
-;; prop-tys:
+;; property-tys: (Listof Type)
 (struct struct-desc (parent-fields self-fields tvars
                      mutable parent-mutable proc-ty
-                     props)
+                     property-tys)
         #:transparent)
 
 (define (struct-desc-all-fields fields)
@@ -121,10 +122,12 @@
                        (make-fld t g (struct-desc-mutable desc)))]
          [flds (append (get-flds parent) this-flds)])
     (make-Struct (struct-names-struct-name names)
-                 parent flds (struct-desc-proc-ty desc)
+                 parent
+                 flds
+                 (struct-desc-proc-ty desc)
                  (not (null? (struct-desc-tvars desc)))
                  (struct-names-predicate names)
-                 (struct-desc-props desc))))
+                 (struct-desc-property-tys desc))))
 
 
 ;; construct all the various types for structs, and then register the appropriate names
@@ -365,6 +368,34 @@
       (struct-names-type-name (parsed-struct-names parsed-struct))))
   (refine-variance! names stys tvarss))
 
+;; a naive implementation
+(define (subst-self src to)
+  (displayln src)
+  (match src
+    [(Fun: arrows) (display arrows)]))
+
+(define (tc-prop-value sty prop val)
+  (displayln val)
+  (define result (tc-expr (local-expand val 'module-begin null)))
+  (define val-ty
+    (match result
+      [(tc-results: (list (tc-result: ts) ...) _) (first ts)]))
+
+  (displayln val-ty)
+  (match prop
+    [(StructProperty: ty)
+     (displayln (eqv? (subst-self ty sty) val-ty))]))
+
+(define (tc/struct-property-values parsed property-values)
+  (define sty (parsed-struct-sty parsed))
+  (displayln "struct-property-values")
+  (displayln (match sty
+               [(Struct: _ _ _ _ _ _ properties)
+                (displayln properties)
+                (for ([p (in-list properties)]
+                      [pv (in-list property-values)])
+                  (tc-prop-value sty p pv))]
+               [#t #f])))
 ;; check and register types for a define struct
 ;; tc/struct : Listof[identifier] (U identifier (list identifier identifier))
 ;;             Listof[identifier] Listof[syntax]
@@ -376,8 +407,22 @@
                    #:mutable [mutable #f]
                    #:type-only [type-only #f]
                    #:prefab? [prefab? #f]
-                   #:props [props null])
+                   #:properties [properties null])
   ;; parent field types can't actually be determined here
+  ;; (displayln (format "tc/struct properties ~a" properties))
+  ;; (displayln (format "tc/struct fld-names ~a" fld-names))
+  #;
+  (unless (null? properties)
+    (displayln (lookup-type (caar properties)))
+    (displayln (parse-type) (lookup-type (caar properties)))
+    (displayln (format "tc/struct test ~a ~a" (parse-type (lookup-type (caar properties)))
+                       (lookup-type (caar properties))
+                       #;
+                       (begin
+                         (parse-type (tc-expr (local-expand (cadar properties) 'module-begin null)))
+                         #;(cadar properties)
+                         ))))
+  (define property-tys (map (λ (x) (lookup-type (car x))) properties))
   (define-values (nm parent-name parent) (parse-parent nm/par prefab?))
   ;; create type variables for the new type parameters
   (define tvars (map syntax-e vars))
@@ -386,16 +431,16 @@
   (define types
     ;; add the type parameters of this structure to the tvar env
     (extend-tvars tvars
-      (parameterize ([current-poly-struct `#s(poly ,type-name ,new-tvars)])
-        ;; parse the field types
-        (map parse-type tys))))
+                  (parameterize ([current-poly-struct `#s(poly ,type-name ,new-tvars)])
+                    ;; parse the field types
+                    (map parse-type tys))))
   ;; instantiate the parent if necessary, with new-tvars
   (define concrete-parent
     (if (Poly? parent)
         (if (> (Poly-n parent) (length new-tvars))
             (tc-error "Could not instantiate parent struct type. Required ~a type variables, received ~a."
-              (Poly-n parent)
-              (length new-tvars))
+                      (Poly-n parent)
+                      (length new-tvars))
             (instantiate-poly parent (take new-tvars (Poly-n parent))))
         parent))
   ;; create the actual structure type, and the types of the fields
@@ -424,7 +469,7 @@
               (= num-fields (vector-length mutable))]
              ['() #f]))
          (define desc
-           (struct-desc parent-fields types tvars mutable parent-mutable #f props))
+           (struct-desc parent-fields types tvars mutable parent-mutable #f property-tys))
          (parsed-struct (make-Prefab key (append parent-fields types))
                         names desc (struct-info-property nm/par) #f)]
         [else
@@ -451,7 +496,7 @@
                        mutable
                        parent-mutable
                        maybe-proc-ty
-                       null)) ;; TODO provide the correct props? HOW?
+                       property-tys))
          (define sty (mk/inner-struct-type names desc concrete-parent))
 
          (parsed-struct sty names desc (struct-info-property nm/par) type-only)]))
@@ -459,10 +504,10 @@
 ;; register a struct type
 ;; convenience function for built-in structs
 ;; tc/builtin-struct : identifier Maybe[identifier] Listof[identifier]
-;;                     Listof[Type] Maybe[identifier] Listof[Type]
+;;                     Listof[Type] Maybe[identifier] Listof[Type] ListOf[Pairof[identifier, Type]]
 ;;                     -> void
 ;; FIXME - figure out how to make this lots lazier
-(define/cond-contract (tc/builtin-struct nm parent fld-names tys kernel-maker)
+(define/cond-contract (tc/builtin-struct nm parent fld-names tys kernel-maker properties)
   (c:-> identifier? (c:or/c #f identifier?) (c:listof identifier?)
         (c:listof Type?) (c:or/c #f identifier?)
         c:any/c)
@@ -482,19 +527,25 @@
 
 ;; syntax for tc/builtin-struct
 (define-syntax (d-s stx)
-  (displayln stx)
   (define-splicing-syntax-class options
-   (pattern (~optional (~seq #:kernel-maker maker:id))
-            #:attr kernel-maker (if (attribute maker) #'(quote-syntax maker) #'#f)))
+    #:attributes ([prop 1] [prop-val 1] kernel-maker)
+    (pattern (~seq (~or (~optional (~seq #:kernel-maker maker:id))
+
+                        (~seq #:property prop:expr prop-val:expr))
+                   ...)
+             #:attr kernel-maker (if (attribute maker) #'(quote-syntax maker) #'#f)))
 
   (syntax-parse stx
     [(_ (nm:id par:id) ([fld:id (~datum :) ty] ...) (par-ty ...) opts:options)
      #'(tc/builtin-struct #'nm #'par
                           (list #'fld ...)
                           (list ty ...)
-                          opts.kernel-maker)]
+                          opts.kernel-maker
+                          (list (cons #'opts.prop #'opts.prop-val) ...))]
     [(_ nm:id ([fld:id (~datum :) ty] ...) opts:options)
      #'(tc/builtin-struct #'nm #f
                           (list #'fld ...)
                           (list ty ...)
-                          opts.kernel-maker)]))
+                          opts.kernel-maker
+                          (list (cons #'opts.prop #'opts.prop-val) ...)
+                          )]))

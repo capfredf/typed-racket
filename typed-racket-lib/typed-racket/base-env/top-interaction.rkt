@@ -82,7 +82,10 @@
            (syntax-parse stx
              [args
               (define result
-                (tc-expr (local-expand to-expand 'expression (list #'module*))))
+                (let ([tmp (local-expand to-expand 'expression (list #'module*))])
+                  (displayln to-expand)
+                  (displayln tmp)
+                  (tc-expr tmp)))
               (handler result)]
              [form
               (raise-syntax-error #f err #'form)]))]))

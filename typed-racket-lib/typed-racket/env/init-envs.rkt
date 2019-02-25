@@ -250,14 +250,19 @@
      `(make-Name (quote-syntax ,stx) ,args ,struct?)]
     [(fld: t acc mut)
      `(make-fld ,(type->sexp t) (quote-syntax ,acc) ,mut)]
-    [(Struct: name parent flds proc poly? pred-id props)
+    [(Struct: name parent flds proc poly? pred-id properties)
+     (displayln "init-env")
+     (displayln properties)
      `(make-Struct (quote-syntax ,name)
                    ,(and parent (type->sexp parent))
                    (list ,@(map type->sexp flds))
                    ,(and proc (type->sexp proc))
                    ,poly?
                    (quote-syntax ,pred-id)
-                   (list ,@(map type->sexp props)))]
+                   (list ,@(for/list ([p (in-list properties)])
+                             (list (type->sexp (car p)) (type->sexp (cdr p)))))
+                   #;(list ,@(map type->sexp props))
+                   )]
     [(StructType: struct) `(make-StructType ,(type->sexp struct))]
     [(Prefab: key flds)
      `(make-Prefab (quote ,key)

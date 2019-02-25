@@ -45,18 +45,27 @@
     [else t]))
 
 (define (parse-typed-struct form)
-  (displayln 'typed-struct)
-  (displayln form)
   (parameterize ([current-orig-stx form])
     (syntax-parse form
       [t:typed-struct
-       (tc/struct (attribute t.tvars) #'t.nm #'t.type-namexf
+       (tc/struct (attribute t.tvars) #'t.nm #'t.type-name
                   (syntax->list #'(t.fields ...)) (syntax->list #'(t.types ...))
                   #:mutable (attribute t.mutable)
                   #:maker (attribute t.maker)
                   #:extra-maker (attribute t.extra-maker)
                   #:type-only (attribute t.type-only)
-                  #:prefab? (attribute t.prefab))]
+                  #:prefab? (attribute t.prefab)
+                  #:properties (attribute t.properties))]
+      [t:typed-struct/exec
+       (tc/struct null #'t.nm #'t.type-name
+                  (syntax->list #'(t.fields ...)) (syntax->list #'(t.types ...))
+                  #:proc-ty #'t.proc-type)])))
+
+(define (parse-typed-struct-property-values sty form)
+  (parameterize ([current-orig-stx form])
+    (syntax-parse form
+      [t:typed-struct
+       (tc/struct-property-values sty (map cadr (attribute t.properties)))]
       [t:typed-struct/exec
        (tc/struct null #'t.nm #'t.type-name
                   (syntax->list #'(t.fields ...)) (syntax->list #'(t.types ...))
@@ -112,6 +121,7 @@
          (list (make-def-binding #'r.name t)))]
 
       [r:typed-require/struct
+       (displayln 'toplevel-typed-require)
        (let* ([t (parse-type #'r.type)]
               [struct-type (lookup-type-name (Name-id t))]
               [mk-ty (match struct-type
@@ -390,12 +400,14 @@
     (for/list ((def (in-list struct-defs)))
       (define parsed (parse-typed-struct def))
       (register-parsed-struct-sty! parsed)
+      (parse-typed-struct-property-values parsed def)
       parsed))
 
   (refine-struct-variance! parsed-structs)
 
   ;; register the bindings of the structs
   (define struct-bindings (map register-parsed-struct-bindings! parsed-structs))
+
   (do-time "before pass1")
   ;; do pass 1, and collect the defintions
   (define *defs (apply append
@@ -613,7 +625,8 @@
     (define parsed (parse-typed-struct form))
     (register-parsed-struct-sty! parsed)
     (refine-struct-variance! (list parsed))
-    (register-parsed-struct-bindings! parsed))
+    (register-parsed-struct-bindings! parsed)
+    (parse-typed-struct-property-values parsed form))
   (tc-toplevel/pass1 form)
   (tc-toplevel/pass1.5 form)
   (begin0 (tc-toplevel/pass2 form #f)

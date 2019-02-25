@@ -142,7 +142,6 @@
             (mk #'define-typed-struct/exec-internal))))
 
 
-
 ;; User-facing macros for defining typed structure types
 (define-syntax (define-typed-struct stx)
   (syntax-parse stx
@@ -174,11 +173,18 @@
                       #'())]
            [extra-maker (if (attribute opts.ecname)
                             #`(#:extra-maker #,(attribute opts.ecname))
-                            #'())])
+                            #'())]
+           [properties (if (not (empty? (attribute opts.prop)))
+                           #`(#,@(append* (for/list ([prop (in-list (attribute opts.prop))]
+                                                     [prop-val (in-list (attribute opts.prop-val))])
+                                            (list #'#:property prop prop-val))))
+                           #'())])
        (with-syntax* ([type (or (attribute opts.type) #'nm.name)]
                       [d-s (ignore (quasisyntax/loc stx
                                      (struct #,@(attribute nm.new-spec) (fs.fld ...)
                                        . opts.untyped)))]
+                      [prop-vals (quasisyntax/loc stx
+                                   (define prop-val-li (list #,@(attribute opts.prop-val))))]
                       [stx-err-fun (if (not (free-identifier=? #'nm.name #'type))
                                        (syntax/loc stx
                                          (define-syntax type type-name-error))
@@ -189,7 +195,12 @@
                                      #,@mutable?
                                      #,@prefab?
                                      #,@maker
-                                     #,@extra-maker))])
+                                     #,@extra-maker
+                                     #,@properties
+                                     ))])
+         (displayln "hahahah dtsi")
+         (displayln #'d-s)
+         (displayln #'dtsi)
          #'(begin d-s stx-err-fun dtsi)))]))
 
 ;; this has to live here because it's used below

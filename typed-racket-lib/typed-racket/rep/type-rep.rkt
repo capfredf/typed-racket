@@ -731,10 +731,10 @@
                   [proc (or/c #f Fun?)]
                   [poly? boolean?]
                   [pred-id identifier?]
-                  [props (listof StructProperty?)])
+                  [properties (listof StructProperty?)])
   [#:frees (f) (combine-frees (map f (append (if proc (list proc) null)
                                              (if parent (list parent) null)
-                                             props
+                                             properties
                                              flds)))]
   [#:fmap (f) (make-Struct name
                            (and parent (f parent))
@@ -742,18 +742,18 @@
                            (and proc (f proc))
                            poly?
                            pred-id
-                           (map f props))]
+                           (map f properties))]
   [#:for-each (f)
    (when parent (f parent))
    (for-each f flds)
    (when proc (f proc))
-   (for-each f props)]
+   (for-each f properties)]
   ;; This should eventually be based on understanding of struct properties.
   [#:mask (mask-union mask:struct mask:procedure)]
   [#:custom-constructor
    (let ([name (normalize-id name)]
          [pred-id (normalize-id pred-id)])
-     (make-Struct name parent flds proc poly? pred-id props))])
+     (make-Struct name parent flds proc poly? pred-id properties))])
 
 
 (def-type StructTop ([name Struct?])
