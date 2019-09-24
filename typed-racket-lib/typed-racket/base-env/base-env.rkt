@@ -14,8 +14,8 @@
   (only-in '#%kernel [apply kernel:apply] [reverse kernel:reverse])
   (only-in racket/private/pre-base new-apply-proc)
   compatibility/mlist
-  (only-in file/convertible prop:convertible)
-  (only-in mzlib/pconvert-prop prop:print-converter prop:print-convert-constructor-name)
+  (only-in file/convertible prop:convertible convertible?)
+  (only-in mzlib/pconvert-prop prop:print-converter prop:print-convert-constructor-name print-converter?)
   racket/logging
   racket/private/stx
   (only-in mzscheme make-namespace)
@@ -68,7 +68,8 @@
 ;; extracted.
 [prop:equal+hash (-struct-property (-lst* (-> -Self -Imp (-> Univ Univ B) Univ)
                                           (-> -Self (-> Univ -Int) -Int)
-                                          (-> -Self (-> Univ -Int) -Int)))]
+                                          (-> -Self (-> Univ -Int) -Int))
+                                   #f)]
 
 ;; Section 4.1.1 (racket/bool)
 [true (-val #t)]
@@ -1237,9 +1238,9 @@
        [(Un (one-of/c #f 'can-impersonate) (-> Univ (-lst Univ)))
         (-lst (-pair -Struct-Type-Property (-> Univ Univ)))
         Univ]
-       (-values (list (-poly (a) (-struct-property a)) (-> Univ B) (-> Univ Univ))))]
+       (-values (list (-poly (a) (-struct-property a #f)) (-> Univ B) (-> Univ Univ))))]
 
-[struct-type-property? (make-pred-ty (-struct-property -Bottom))]
+[struct-type-property? (make-pred-ty (-struct-property -Bottom #f))]
 [struct-type-property-accessor-procedure? (-> Univ B)]
 
 ;; Section 5.6 (Structure Utilities)
@@ -1322,7 +1323,7 @@
 [error-print-source-location (-Param Univ B)]
 
 ;; Section 10.2.5
-[prop:exn:srclocs (-struct-property (-> -Self (-lst -Srcloc)))]
+[prop:exn:srclocs (-struct-property (-> -Self (-lst -Srcloc)) #'exn:srclocs?)]
 [exn:srclocs? (-> Univ B)]
 [exn:srclocs-accessor (-> Univ (-lst Univ))] ;TODO
 
@@ -1506,7 +1507,7 @@
 [system-idle-evt (-> (-evt -Void))]
 [alarm-evt (-> -Real (-mu x (-evt x)))]
 [handle-evt? (asym-pred Univ B (-PS (-is-type 0 (-evt Univ)) -tt))]
-[prop:evt (-struct-property (Un (-evt Univ) (-> -Self ManyUniv) -Nat))]
+[prop:evt (-struct-property (Un (-evt Univ) (-> -Self ManyUniv) -Nat) #f)]
 [current-evt-pseudo-random-generator
  (-Param -Pseudo-Random-Generator -Pseudo-Random-Generator)]
 
@@ -1721,12 +1722,14 @@
 [set!-transformer-procedure (-> Univ (-> (-Syntax Univ) (-Syntax Univ)))]
 [prop:set!-transformer (-struct-property (Un -Nat
                                              (cl-> [(-Self) (-Syntax Univ)]
-                                                   [(-Self (-Syntax Univ)) (-Syntax Univ)])))]
+                                                   [(-Self (-Syntax Univ)) (-Syntax Univ)]))
+                                         #'set!-transformer?)]
 
 [rename-transformer? (-> Univ B)]
 [make-rename-transformer (->opt (-Syntax Sym) [(-> (-Syntax Sym) (-Syntax Sym))] Univ)]
 [rename-transformer-target (-> Univ (-Syntax Sym))]
-[prop:rename-transformer (-struct-property (Un -Nat (-Syntax Sym) (-> -Self (-Syntax Sym))))]
+[prop:rename-transformer (-struct-property (Un -Nat (-Syntax Sym) (-> -Self (-Syntax Sym)))
+                                           #'rename-transformer?)]
 
 [local-expand
  (->opt (-Syntax Univ)
@@ -1953,8 +1956,8 @@
 [pipe-content-length (-> (Un -Input-Port -Output-Port) -Nat)]
 
 ;; Section 13.1.8
-[prop:input-port (-struct-property (Un -Input-Port -Nat))]
-[prop:output-port (-struct-property (Un -Output-Port -Nat))]
+[prop:input-port (-struct-property (Un -Input-Port -Nat) #'input-port?)]
+[prop:output-port (-struct-property (Un -Output-Port -Nat) #'output-port?)]
 
 ;; Section 13.1.9
 [make-input-port
@@ -2308,15 +2311,17 @@
 [special-comment-value (-> -Special-Comment Univ)]
 
 ;; Section 13.8
-[prop:custom-write (-struct-property (-> -Self -Output-Port (Un B (-val 1) (-val 0)) ManyUniv))]
 [custom-write? (-> Univ B)]
+[prop:custom-write (-struct-property (-> -Self -Output-Port (Un B (-val 1) (-val 0)) ManyUniv)
+                                     #'custom-write?)]
 [custom-write-accessor (-> Univ (-> Univ -Output-Port (Un B (-val 1) (-val 0)) ManyUniv))]
 
+[custom-print-quotable? (-> Univ B)]
 [prop:custom-print-quotable (-struct-property (Un (-val 'self)
                                                   (-val 'never)
                                                   (-val 'maybe)
-                                                  (-val 'always)))]
-[custom-print-quotable? (-> Univ B)]
+                                                  (-val 'always))
+                                              #'custom-print-quotable?)]
 [custom-print-quotable-accessor (-> Univ Univ)]
 
 ;; Section 13.9
@@ -3499,9 +3504,11 @@
    (->optkey -Pattern -Input (N ?N -Bytes) #:match-select sel #f output)))
 
 ;; File: Racket File and Format Libraries
-[prop:convertible (-struct-property (-> -Self -Symbol Univ Univ))]
+[prop:convertible (-struct-property (-> -Self -Symbol Univ Univ)
+                                    #'convertible?)]
 
 
 ;; MzLib: Legacy Libraries
-[prop:print-converter (-struct-property (-> -Self (-> Univ Univ) Univ))]
+[prop:print-converter (-struct-property (-> -Self (-> Univ Univ) Univ)
+                                        #'print-converter?)]
 [prop:print-convert-constructor-name (-struct-property -Symbol)]

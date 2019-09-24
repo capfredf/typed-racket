@@ -30,12 +30,16 @@
 ;; by all-defined-out or related forms.
 (define-syntax (rename-without-provide stx)
   (syntax-parse stx
-    [(_ nm:id hidden:id)
+    [(_ nm:id hidden:id orig:id)
      #'(define-syntax nm
          (make-rename-transformer
-          (syntax-property (syntax-property (quote-syntax hidden)
-                                            'not-free-identifier=? #t)
-                           'not-provide-all-defined #t)))]))
+          (syntax-property
+           (syntax-property
+            (syntax-property (quote-syntax hidden)
+                             'not-free-identifier=? #t)
+            'original-name
+            (quote-syntax orig))
+           'not-provide-all-defined #t)))]))
 
 ;; Requires an identifier from an untyped module into a typed module
 ;; nm is the import
@@ -53,7 +57,7 @@
   (syntax-parse stx
     [(require/contract nm:renameable hidden:id cnt lib)
      #`(begin (require (only-in lib [nm.orig-nm nm.orig-nm-r]))
-              (rename-without-provide nm.nm hidden)
+              (rename-without-provide nm.nm hidden nm.orig-nm-r)
 
               (define-ignored hidden
                 (contract cnt

@@ -27,7 +27,6 @@
            (except-in racket/base case-lambda)
            racket/unit
            "../base-env/colon.rkt"
-           (only-in "../base-env/base-types.rkt" Struct-Property)
            "../base-env/base-types-extra.rkt"
            ;; match on the `case-lambda` binding in the TR primitives
            ;; rather than the one from Racket, which is no longer bound
@@ -56,7 +55,7 @@
 ;; current-term-names when parsing ψ
 (define current-local-term-ids (make-parameter '()))
 
-;; current-in-struct-prop: Paremeter<Boolean>
+;; current-in-struct-prop: Parameter<Boolean>
 ;; This parameter is set to #t if (Struct-Property ty) is being parsed.
 ;; The typechecker uses this parameter to determine if parsing types
 ;; like Self and Imp are inside Struct-Property.
@@ -145,6 +144,7 @@
 (define-literal-syntax-class #:for-label Vector)
 (define-literal-syntax-class #:for-label Struct)
 (define-literal-syntax-class #:for-label Struct-Property)
+(define-literal-syntax-class #:for-label Has-Struct-Property)
 (define-literal-syntax-class #:for-label Struct-Type)
 (define-literal-syntax-class #:for-label Prefab)
 (define-literal-syntax-class #:for-label PrefabTop)
@@ -159,6 +159,7 @@
 (define-literal-syntax-class #:for-label Intersection)
 (define-literal-syntax-class #:for-label Refine)
 (define-literal-syntax-class #:for-label Self)
+(define-literal-syntax-class #:for-label Exist)
 (define-literal-syntax-class #:for-label Imp)
 (define-literal-syntax-class #:for-label not)
 (define-literal-syntax-class #:for-label and)
@@ -241,6 +242,11 @@
           (parse-type #'t.type))))]
     [(:All^ (_:id ...) _ _ _ ...) (parse-error "too many forms in body of All type")]
     [(:All^ . rest) (parse-error "bad syntax")]))
+
+
+(define-syntax-rule (subst-self-with var body-type)
+  (extend-tvars (list var)
+                body-type))
 
 ;; syntax class for standard keyword syntax (same as contracts), may be
 ;; optional or mandatory depending on where it's used
@@ -566,6 +572,16 @@
   (pattern i:Self^
            #:attr type -Self))
 
+(define-splicing-syntax-class sp-arg
+  #:attributes (type pred?)
+  (pattern i:expr
+           #:attr type #'i
+           #:attr pred? #f)
+  (pattern (~seq i:expr p:expr)
+           #:attr type #'i
+           #:attr pred? (let-values ([(_ rt) (syntax-local-value/immediate #'p (lambda () (values #f #'p)))])
+                          rt)))
+
 (define-splicing-syntax-class (legacy-full-latent doms)
   #:description "latent propositions and object"
   (pattern (~seq (~optional (~seq #:+ (~var p+ (legacy-prop doms)) ...+) #:defaults ([(p+.prop 1) null]))
@@ -621,10 +637,13 @@
                          "expected a structure type for argument to Struct-Type"
                          "given" v)
             (Un)])]
-      [(:Struct-Property^ t)
+      [(:Struct-Property^ t:sp-arg)
        (make-Struct-Property
         (parameterize ([current-in-struct-prop #t])
-          (parse-type #'t)))]
+          (parse-type #'t.type))
+        (attribute t.pred?))]
+      [(:Has-Struct-Property^ t:id)
+       (make-Has-Struct-Property #'t)]
       [(:Prefab^ key ts ...)
        #:fail-unless (prefab-key? (syntax->datum #'key)) "expected a prefab key"
        (define num-fields (length (syntax->list #'(ts ...))))
@@ -787,6 +806,9 @@
        (parse-quoted-type #'t)]
       [(:All^ . rest)
        (parse-all-type stx)]
+      [(:Exist^ x:id . t:omit-parens)
+       (extend-tvars (list (syntax-e #'x))
+                     (make-Exist (syntax-e #'x) (parse-type #'t.type)))]
       [(:Opaque^ p?:id)
        (make-Opaque #'p?)]
       [(:Distinction^ name:id unique-id:id rep-ty:expr)

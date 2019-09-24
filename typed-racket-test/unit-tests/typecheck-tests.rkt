@@ -2068,7 +2068,7 @@
 
         ;Structure Type Properties
         (tc-e (make-struct-type-property 'prop)
-              (list (-poly (a) (make-Struct-Property a)) (t:-> Univ -Boolean) (t:-> Univ Univ)))
+              (list (-poly (a) (make-Struct-Property a #f)) (t:-> Univ -Boolean) (t:-> Univ Univ)))
         (tc-e (let-values: ((((prop : (Struct-Property Any))
                               (pred : (Any -> Any)) (acc : (Any -> Any)))
                              (make-struct-type-property 'prop)))

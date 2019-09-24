@@ -984,8 +984,8 @@ prefab types with the (implicitly quoted) prefab-key
   come before its definition.
 
   @ex[(: prop:foo (Struct-Property (-> Self Number)))
-      (: foo-pred (-> Any Boolean))
-      (: foo-accessor (-> Any Any))
+      (: foo-pred (-> Any Boolean : (Has-Struct-Property prop:foo)))
+      (: foo-accessor (Exist X (-> (Has-Struct-Property prop:foo) (-> X Number) : X)))
       (define-values (prop:foo foo-pred foo-accessor) (make-struct-type-property 'foo))
      ]
   @history[#:added "1.10"]}

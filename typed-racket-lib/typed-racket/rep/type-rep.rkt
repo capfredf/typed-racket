@@ -69,6 +69,7 @@
          abstract-obj
          substitute-names
          DepFun/ids:
+         Exist-names:
          (rename-out [Union:* Union:]
                      [Intersection:* Intersection:]
                      [make-Intersection* make-Intersection]
@@ -89,7 +90,9 @@
                      [Poly-body* Poly-body]
                      [PolyDots-body* PolyDots-body]
                      [PolyRow-body* PolyRow-body]
-                     [Intersection-prop* Intersection-prop]))
+                     [Intersection-prop* Intersection-prop]
+                     [Exist* make-Exist]
+                     [Exist:* Exist:]))
 
 (define (resolvable? x)
   (or (Mu? x)
@@ -507,6 +510,7 @@
       body]
      [else (make-Mu body)])])
 
+
 ;; n is how many variables are bound here
 ;; body is a type
 (def-type Poly ([n exact-nonnegative-integer?]
@@ -542,6 +546,15 @@
 (def-type Opaque ([pred identifier?])
   #:base
   [#:custom-constructor (make-Opaque (normalize-id pred))])
+
+;; body is a type
+(def-type Exist ([body Type?])
+  #:no-provide
+  [#:frees (f) (f body)]
+  [#:fmap (f) (make-Exist (f body))]
+  [#:for-each (f) (f body)]
+  #;
+  [#:mask (λ (t) (mask (Exist-body t)))])
 
 
 
@@ -714,7 +727,21 @@
 ;; Structs
 ;;************************************************************
 
-(def-structural Struct-Property ([elem #:contravariant]))
+;; (def-structural Struct-Property ([elem #:contravariant]
+;;                                  [pred-id #:invariant]))
+
+(def-type Struct-Property
+  ([elem Type?]
+   [pred-id (box/c (or/c identifier? false/c))])
+  [#:frees (f) (f elem)]
+  [#:fmap (f) (make-Struct-Property (f elem) (unbox pred-id))]
+  [#:for-each (f) (f elem)]
+  [#:custom-constructor
+   (make-Struct-Property elem (box (if (not pred-id) #f (normalize-id pred-id))))])
+
+(def-type Has-Struct-Property ([name identifier?])
+  #:base
+  [#:custom-constructor (make-Has-Struct-Property (normalize-id name))])
 
 
 (def-rep fld ([t Type?] [acc identifier?] [mutable? boolean?])
@@ -732,10 +759,10 @@
                   [proc (or/c #f Fun?)]
                   [poly? boolean?]
                   [pred-id identifier?]
-                  [properties (box/c (listof Struct-Property?))])
+                  [properties (free-id-table/c identifier? Struct-Property?)])
   [#:frees (f) (combine-frees (map f (append (if proc (list proc) null)
                                              (if parent (list parent) null)
-                                             (unbox properties)
+                                             (free-id-table-values properties)
                                              flds)))]
   [#:fmap (f) (make-Struct name
                            (and parent (f parent))
@@ -743,12 +770,14 @@
                            (and proc (f proc))
                            poly?
                            pred-id
-                           (box (map f (unbox properties))))]
+                           (make-free-id-table	
+                            (for/list ([(k v) (in-free-id-table properties)])
+                              (cons k (f v)))))]
   [#:for-each (f)
    (when parent (f parent))
    (for-each f flds)
    (when proc (f proc))
-   (for-each f (unbox properties))]
+   (for-each f (free-id-table-values properties))]
   ;; This should eventually be based on understanding of struct properties.
   [#:mask (mask-union mask:struct mask:procedure)]
   [#:custom-constructor
@@ -1558,7 +1587,6 @@
 ;;************************************************************
 
 
-
 ;; the 'smart' constructor
 (define (Mu* name body)
   (let ([v (make-Mu (abstract-type body name))])
@@ -1873,6 +1901,39 @@
             (app merge-class/row
                  (list row-pat inits-pat fields-pat
                        methods-pat augments-pat init-rest-pat)))])))
+
+;;***************************************************************
+;; Smart Constructors for Exist structs
+;;***************************************************************
+(define (Exist* name body)
+  (define v (make-Exist (abstract-type body name)))
+  (hash-set! type-var-name-table v name)
+  v)
+
+;; the 'smart' destructor
+(define (Exist-body* name t)
+  (match t
+    [(Exist: body)
+     (instantiate-type body (make-F name))]))
+
+
+(define-match-expander Exist-names:
+  (lambda (stx)
+    (syntax-case stx ()
+      [(_ np bp)
+       #'(? Exist?
+            (app (lambda (t) (let ([sym (hash-ref type-var-name-table t (λ _ (gensym)))])
+                               (list sym (Exist-body* sym t))))
+                 (list np bp)))])))
+
+(define-match-expander Exist:*
+  (lambda (stx)
+    (syntax-case stx ()
+      [(_ np bp)
+       #'(? Exist?
+            (app (lambda (t) (let ([sym (gensym)])
+                               (list sym (Exist-body* sym t))))
+                 (list np bp)))])))
 
 
 ;;***************************************************************

@@ -261,11 +261,13 @@
                    ,(and proc (type->sexp proc))
                    ,poly?
                    (quote-syntax ,pred-id)
-                   ;(list ,@properties)
-                   (box (list ,@(map type->sexp (unbox properties))))
+                   (make-free-id-table ,@(for/list ([(k v) (in-free-id-table properties)])
+                                           (cons `(quote-syntax ,k) (type->sexp v))))
                    )]
     [(StructType: struct) `(make-StructType ,(type->sexp struct))]
-    [(Struct-Property: ty) `(make-Struct-Property ,(type->sexp ty))]
+    [(Struct-Property: ty pred-id) `(make-Struct-Property ,(type->sexp ty) (quote-syntax ,pred-id))]
+    [(Exist: n body) `(make-Exist (quote ,n) ,(type->sexp body))]
+    [(Has-Struct-Property: sym) `(make-Has-Struct-Property (quote-syntax ,sym))]
     [(Prefab: key flds)
      `(make-Prefab (quote ,key)
                    (list ,@(map type->sexp flds)))]

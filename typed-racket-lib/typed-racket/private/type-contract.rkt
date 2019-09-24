@@ -7,7 +7,7 @@
  syntax/parse
  (rep type-rep prop-rep object-rep fme-utils)
  (utils tc-utils prefab identifier)
- (env type-name-env row-constraint-env)
+ (env type-name-env row-constraint-env lexical-env)
  (rep core-rep rep-utils free-ids type-mask values-rep
       base-types numeric-base-types)
  (types resolve utils printer match-expanders union subtype)
@@ -475,8 +475,11 @@
                [safe-spp/sc (flat/sc #'struct-predicate-procedure?/c)]
                [optimized/sc (if (from-typed? typed-side)
                                  unsafe-spp/sc
-                                 safe-spp/sc)])
-          (or/sc optimized/sc (t->sc/fun t)))]
+                                 safe-spp/sc)]
+               [spt-pred-procedure?/sc (if (from-typed? typed-side)
+                                           (flat/sc #'struct-type-property-predicate-procedure?)
+                                           (flat/sc #'struct-type-property-predicate-procedure?))])
+          (or/sc optimized/sc spt-pred-procedure?/sc (t->sc/fun t)))]
        [(? Fun? t) (t->sc/fun t)]
        [(? DepFun? t) (t->sc/fun t)]
        [(Set: t) (set/sc (t->sc t))]
@@ -683,7 +686,17 @@
             (fail #:reason (~a "cannot import structure types from"
                                "untyped code"))
             (struct-type/sc null))]
-       [(Struct-Property: s) (struct-property/sc (t->sc s))]
+       [(Struct-Property: s _) (struct-property/sc (t->sc s))]
+       [(Has-Struct-Property: orig-id)
+        ;; we can't call syntax-local-value/immediate in has-struct-property case in parse-type
+        (define-values (a prop-name) (syntax-local-value/immediate orig-id (λ () (values #t orig-id))))
+        (match-define (Struct-Property: _ (box pred?)) (lookup-id-type/lexical prop-name))
+        ;; if original-name is only set when the type is added via require/typed
+        (define real-prop-var (or (syntax-property prop-name 'original-name) prop-name))
+        (flat/sc #`(flat-named-contract '#,(syntax-e pred?) (lambda (x)
+                                                              (unless (struct-type-property-predicate-procedure? #,pred? #,real-prop-var)
+                                                                (fail #:reason (format "~v is not the property predicate of ~v" #,pred? #,real-prop-var)))
+                                                              (#,pred? x))))]
        [(Prefab: key (list (app t->sc fld/scs) ...)) (prefab/sc key fld/scs)]
        [(PrefabTop: key)
         (flat/sc #`(struct-type-make-predicate
@@ -756,6 +769,7 @@
      ;; Try to generate a single `->*' contract if possible.
      ;; This allows contracts to be generated for functions with both optional and keyword args.
      ;; (and don't otherwise require full `case->')
+
      (define conv (match-lambda [(Keyword: kw kty _) (list kw (t->sc/neg kty))]))
      (define (partition-kws kws) (partition (match-lambda [(Keyword: _ _ mand?) mand?]) kws))
      (define (process-dom dom*)  (if method? (cons any/sc dom*) dom*))

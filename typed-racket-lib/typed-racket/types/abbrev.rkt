@@ -45,6 +45,7 @@
 (define (-vec* . ts) (make-HeterogeneousVector ts))
 (define -future make-Future)
 (define -struct-property make-Struct-Property)
+(define -has-struct-property make-Has-Struct-Property)
 (define -evt make-Evt)
 (define -weak-box make-Weak-Box)
 (define -inst make-Instance)
@@ -153,7 +154,7 @@
 (define/decl -NonPosExtFlonum (Un -NegExtFlonum -ExtFlonumZero))
 (define/decl -ExtFlonum (Un -NegExtFlonumNoNan -ExtFlonumNegZero -ExtFlonumPosZero -PosExtFlonumNoNan -ExtFlonumNan))
 
-(define/decl -Struct-Type-Property (-struct-property Univ))
+(define/decl -Struct-Type-Property (-struct-property Univ #f))
 
 ;; Type alias names
 (define (-struct-name name)
@@ -161,7 +162,7 @@
 
 
 ;; Structs
-(define (-struct name parent flds [proc #f] [poly #f] [pred #'dummy] [props (box null)])
+(define (-struct name parent flds [proc #f] [poly #f] [pred #'dummy] [props (make-hash)])
   (make-Struct name parent flds proc poly pred props))
 
 ;; Function type constructors

@@ -1,15 +1,15 @@
 #lang racket/base
 
 (require "../utils/utils.rkt"
-         syntax/struct syntax/parse racket/function racket/match racket/list
-
+         syntax/struct syntax/parse racket/function racket/match racket/list syntax/id-table
          (prefix-in c: (contract-req))
-         (rep free-variance)
+         
+         (rep free-variance values-rep)
          (private parse-type syntax-properties)
-         (types abbrev subtype utils resolve substitute struct-table)
-         (env global-env type-name-env type-alias-env tvar-env)
+         (types base-abbrev abbrev subtype utils resolve substitute struct-table)
+         (env global-env type-name-env type-alias-env tvar-env lexical-env)
          (utils tc-utils prefab identifier)
-         (typecheck typechecker def-binding internal-forms error-message)
+         (typecheck typechecker def-binding internal-forms error-message tc-subst)
          (for-syntax syntax/parse racket/base)
          (for-template racket/base))
 
@@ -17,6 +17,8 @@
 
 (provide tc/struct
          tc/struct-prop-values
+         tc/add-types-for-props-in-struct
+         synth-make-struct-type-property
          name-of-struct d-s
          refine-struct-variance!
          register-parsed-struct-sty!
@@ -73,6 +75,34 @@
            #:with (prop-vals ...) #'())
   (pattern (#%plain-app list (#%plain-app cons prop-names prop-vals) ...)))
 
+(define (tc/add-types-for-props-in-struct form name)
+  (syntax-parse form
+    #:literals (define-values #%plain-app define-syntaxes begin #%expression let-values quote list cons make-struct-type values null)
+    [(define-values (struct-var r ...)
+       (let-values (((var1 r1 ...)
+                     (let-values ()
+                       (#%expression
+                        (let-values ()
+                          (#%plain-app make-struct-type _name _super-type _init-fcnt _auto-fcnt auto-v props:expanded-props r_args ...))))))
+         (#%plain-app values args-v ...)))
+     (let ([pnames (attribute props.prop-names)])
+       (unless (null? pnames)
+         (define sty (lookup-type-name name))
+         (define properties
+           (match sty
+             [(Struct: nm _ _ _ _ _ sptys) sptys]
+             [(Poly: ns (Struct: nm _ _ _ _ _ sptys)) #:when (and (hash? sptys) (not (immutable? sptys))) sptys]))
+
+         (for/list ([p (in-list pnames)]
+                    [pval (in-list (attribute props.prop-vals))])
+           (match (single-value p)
+             [(tc-result1: (Struct-Property: ty _))
+              (free-id-table-set! properties p ty)]
+             [(tc-result1: ty)
+              (tc-error "expected a struct type property but got ~a" ty)]))))]
+
+    [(define-syntaxes (nm ...) . rest) (void)]))
+
 (define (tc/struct-prop-values form name)
   (syntax-parse form
     #:literals (define-values #%plain-app define-syntaxes begin #%expression let-values quote list cons make-struct-type values null)
@@ -86,25 +116,34 @@
      (let ([pnames (attribute props.prop-names)])
        (unless (null? pnames)
          (define sty (lookup-type-name name))
+         (define properties
+           (match sty
+             [(Struct: nm _ _ _ _ _ sptys) sptys]
+             [(Poly: ns (Struct: nm _ _ _ _ _ sptys)) #:when (and (hash? sptys) (not (immutable? sptys))) sptys]))
+
          (for/list ([p (in-list pnames)]
                     [pval (in-list (attribute props.prop-vals))])
            (match (single-value p)
-             [(tc-result1: (Struct-Property: ty))
+             [(tc-result1: (Struct-Property: ty _))
               (match-define (F: var) -Self)
               (match-define (F: var-imp) -Imp)
-              (match sty
-                [(Struct: _ _ _ _ _ _ _)
-                 (tc-expr/check pval (ret (subst var-imp sty (subst var sty ty))))]
-                [(Poly-names: names sty)
-                 (let* ([v (subst var sty ty)]
-                        [v (for/fold ([res sty]
-                                      #:result (subst var-imp res v))
-                                     ([n names])
-                             (subst n (make-F (gensym n)) res))]
-                        [v (ret v)])
-                   (extend-tvars names (tc-expr/check pval v)))])]
-              [(tc-result1: ty)
-               (tc-error "expected a struct type property but got ~a" ty)]))))]
+              (define p-ty (match sty
+                             [(Struct: _ _ _ _ _ _ _)
+                              (tc-expr/check pval (ret (subst var-imp sty (subst var sty ty))))]
+                             [(Poly-names: names sty)
+                              (let* ([v (subst var sty ty)]
+                                     [v (for/fold ([res sty]
+                                                   #:result (subst var-imp res v))
+                                                  ([n names])
+                                          (subst n (make-F (gensym n)) res))]
+                                     [v (ret v)])
+                                (extend-tvars names (tc-expr/check pval v)))]))
+              (match-define (tc-results: (list (tc-result: pt _ _)) _) p-ty)
+              (free-id-table-set! properties p pt)
+              p-ty]
+             [(tc-result1: ty)
+              (tc-error "expected a struct type property but got ~a" ty)]))))]
+
     [(define-syntaxes (nm ...) . rest) (void)]))
 
 
@@ -155,7 +194,7 @@
 
 ;; Constructs the Struct value for a structure type
 ;; The returned value has free type variables
-(define/cond-contract (mk/inner-struct-type names desc parent)
+(define/cond-contract (mk/inner-struct-type names desc parent [property-names empty])
   (c:-> struct-names? struct-desc? (c:or/c Struct? #f) Struct?)
 
   (let* ([this-flds (for/list ([t (in-list (struct-desc-self-fields desc))]
@@ -168,7 +207,9 @@
                  (struct-desc-proc-ty desc)
                  (not (null? (struct-desc-tvars desc)))
                  (struct-names-predicate names)
-                 (box null))))
+                 (make-free-id-table
+                  (for/list ([i (in-list property-names)])
+                    (cons i #t))))))
 
 
 ;; construct all the various types for structs, and then register the appropriate names
@@ -419,7 +460,8 @@
                    #:extra-maker [extra-maker #f]
                    #:mutable [mutable #f]
                    #:type-only [type-only #f]
-                   #:prefab? [prefab? #f])
+                   #:prefab? [prefab? #f]
+                   #:properties [properties empty])
   (define-values (nm parent-name parent) (parse-parent nm/par prefab?))
   ;; create type variables for the new type parameters
   (define tvars (map syntax-e vars))
@@ -493,7 +535,8 @@
                        mutable
                        parent-mutable
                        maybe-proc-ty))
-         (define sty (mk/inner-struct-type names desc concrete-parent))
+
+         (define sty (mk/inner-struct-type names desc concrete-parent properties))
 
          (parsed-struct sty names desc (struct-info-property nm/par) type-only)]))
 
@@ -538,3 +581,18 @@
                           (list #'fld ...)
                           (list ty ...)
                           opts.kernel-maker)]))
+
+(define/cond-contract (synth-make-struct-type-property prop-name pred-id struct-property-ty)
+  (syntax?  Type? . c:-> . tc-results/c)
+  (match-define (Struct-Property: ty bpred) struct-property-ty)
+  (cond
+    [(not (unbox bpred))
+     (set-box! bpred pred-id)
+     (define has-spty (make-Has-Struct-Property prop-name))
+     (values->tc-results (make-Values (list (-result struct-property-ty -true-propset -empty-obj)
+                                            (-result (make-pred-ty has-spty))
+                                            (-result (make-Fun (list (-Arrow (list has-spty) ty
+                                                                             #:props (-PS (-is-type 0 -Self)
+                                                                                          (-not-type 0 -Self))))))))
+                                             '())]
+    [else (error 'tc-struct "the predicate for ~a was set before typechecking the creation of ~a" prop-name)]))
