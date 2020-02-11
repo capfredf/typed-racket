@@ -52,13 +52,13 @@
         (convert-type -field)
         '-field)
       (check-equal?
-       (convert-type (make-StructType (make-Struct #'foo #f null #f #f #'foo? (make-hash))))
+       (convert-type (make-StructType (make-Struct #'foo #f null #f #f #'foo? (make-free-id-table))))
         '(make-StructType
-          (make-Struct (quote-syntax foo) #f (list) #f #f (quote-syntax foo?) (make-hash))))
+          (make-Struct (quote-syntax foo) #f (list) #f #f (quote-syntax foo?) (make-free-id-table))))
       (check-equal?
-       (convert-type (make-StructTop (make-Struct #'foo #f null #f #f #'foo? (make-hash))))
+       (convert-type (make-StructTop (make-Struct #'foo #f null #f #f #'foo? (make-free-id-table))))
         '(make-StructTop
-          (make-Struct (quote-syntax foo) #f (list) #f #f (quote-syntax foo?) (make-hash))))
+          (make-Struct (quote-syntax foo) #f (list) #f #f (quote-syntax foo?) (make-free-id-table))))
       (check-equal?
         (convert-type (make-Row null null null null #f))
         '(make-Row (list) (list) (list) (list) #f))

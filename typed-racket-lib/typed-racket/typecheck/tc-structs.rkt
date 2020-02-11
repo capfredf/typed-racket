@@ -209,7 +209,7 @@
                  (struct-names-predicate names)
                  (make-free-id-table
                   (for/list ([i (in-list property-names)])
-                    (cons i #t))))))
+                    (cons i -Bottom))))))
 
 
 ;; construct all the various types for structs, and then register the appropriate names
