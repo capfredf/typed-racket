@@ -2,6 +2,7 @@
 
 (require "test-utils.rkt"
          rackunit
+         syntax/id-table
          (rep object-rep type-rep)
          (env init-envs)
          (types abbrev))
