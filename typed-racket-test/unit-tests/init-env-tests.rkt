@@ -2,7 +2,7 @@
 
 (require "test-utils.rkt"
          rackunit
-         syntax/id-table
+         syntax/id-set
          (rep object-rep type-rep)
          (env init-envs)
          (types abbrev))
@@ -53,13 +53,13 @@
         (convert-type -field)
         '-field)
       (check-equal?
-       (convert-type (make-StructType (make-Struct #'foo #f null #f #f #'foo? (make-free-id-table))))
+       (convert-type (make-StructType (make-Struct #'foo #f null #f #f #'foo? (immutable-free-id-set (list)))))
         '(make-StructType
-          (make-Struct (quote-syntax foo) #f (list) #f #f (quote-syntax foo?) (make-free-id-table))))
+          (make-Struct (quote-syntax foo) #f (list) #f #f (quote-syntax foo?) (immutable-free-id-set (list)))))
       (check-equal?
-       (convert-type (make-StructTop (make-Struct #'foo #f null #f #f #'foo? (make-free-id-table))))
+       (convert-type (make-StructTop (make-Struct #'foo #f null #f #f #'foo? (immutable-free-id-set (list)))))
         '(make-StructTop
-          (make-Struct (quote-syntax foo) #f (list) #f #f (quote-syntax foo?) (make-free-id-table))))
+          (make-Struct (quote-syntax foo) #f (list) #f #f (quote-syntax foo?) (immutable-free-id-set (list)))))
       (check-equal?
         (convert-type (make-Row null null null null #f))
         '(make-Row (list) (list) (list) (list) #f))

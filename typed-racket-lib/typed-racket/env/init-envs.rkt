@@ -18,7 +18,8 @@
          data/queue
          racket/private/dict racket/list racket/promise
          racket/match
-         syntax/private/id-table)
+         syntax/private/id-table
+         syntax/id-set)
 
 (provide ;; convenience form for defining an initial environment
          ;; used by "base-special-env.rkt" and "base-contracted.rkt"
@@ -261,9 +262,8 @@
                    ,(and proc (type->sexp proc))
                    ,poly?
                    (quote-syntax ,pred-id)
-                   (make-free-id-table (list ,@(for/list ([(k v) (in-free-id-table properties)])
-                                                `(cons (quote-syntax ,k) ,(type->sexp v)))))
-                   )]
+                   (immutable-free-id-set (list ,@(for/list ([p (in-free-id-set properties)])
+                                                  `(quote-syntax ,p)))))]
     [(StructType: struct) `(make-StructType ,(type->sexp struct))]
     [(Struct-Property: ty pred-id) `(make-Struct-Property ,(type->sexp ty) (quote-syntax ,pred-id))]
     [(Exist: n body) `(make-Exist (quote ,n) ,(type->sexp body))]

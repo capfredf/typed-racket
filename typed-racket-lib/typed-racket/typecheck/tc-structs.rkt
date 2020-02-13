@@ -1,7 +1,7 @@
 #lang racket/base
 
 (require "../utils/utils.rkt"
-         syntax/struct syntax/parse racket/function racket/match racket/list syntax/id-table
+         syntax/struct syntax/parse racket/function racket/match racket/list syntax/id-set
          (prefix-in c: (contract-req))
          
          (rep free-variance values-rep)
@@ -88,11 +88,6 @@
      (let ([pnames (attribute props.prop-names)])
        (unless (null? pnames)
          (define sty (lookup-type-name name))
-         (define properties
-           (match sty
-             [(Struct: nm _ _ _ _ _ sptys) sptys]
-             [(Poly: ns (Struct: nm _ _ _ _ _ sptys)) #:when (mutable-free-id-table? sptys) sptys]))
-
          (for/list ([p (in-list pnames)]
                     [pval (in-list (attribute props.prop-vals))])
            (match (single-value p)
@@ -176,9 +171,7 @@
                  (struct-desc-proc-ty desc)
                  (not (null? (struct-desc-tvars desc)))
                  (struct-names-predicate names)
-                 (make-free-id-table
-                  (for/list ([i (in-list property-names)])
-                    (cons i -Bottom))))))
+                 (immutable-free-id-set property-names))))
 
 
 ;; construct all the various types for structs, and then register the appropriate names

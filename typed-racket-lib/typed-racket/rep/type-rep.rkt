@@ -21,6 +21,7 @@
          "base-union.rkt"
          racket/match racket/list
          syntax/id-table
+         syntax/id-set
          racket/contract
          racket/lazy-require
          racket/unsafe/undefined
@@ -759,10 +760,9 @@
                   [proc (or/c #f Fun?)]
                   [poly? boolean?]
                   [pred-id identifier?]
-                  [properties (free-id-table/c identifier? Struct-Property?)])
+                  [properties (free-id-set/c identifier?)])
   [#:frees (f) (combine-frees (map f (append (if proc (list proc) null)
                                              (if parent (list parent) null)
-                                             (free-id-table-values properties)
                                              flds)))]
   [#:fmap (f) (make-Struct name
                            (and parent (f parent))
@@ -770,14 +770,11 @@
                            (and proc (f proc))
                            poly?
                            pred-id
-                           (make-free-id-table	
-                            (for/list ([(k v) (in-free-id-table properties)])
-                              (cons k (f v)))))]
+                           properties)]
   [#:for-each (f)
    (when parent (f parent))
    (for-each f flds)
-   (when proc (f proc))
-   (for-each f (free-id-table-values properties))]
+   (when proc (f proc))]
   ;; This should eventually be based on understanding of struct properties.
   [#:mask (mask-union mask:struct mask:procedure)]
   [#:custom-constructor

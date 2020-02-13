@@ -2,7 +2,7 @@
 (require (except-in "../utils/utils.rkt" infer)
          racket/match racket/function racket/lazy-require
          racket/list
-         syntax/id-table
+         syntax/id-set
          (contract-req)
          (rep type-rep prop-rep object-rep
               core-rep type-mask values-rep rep-utils
@@ -1206,7 +1206,7 @@
       A]
      [(Has-Struct-Property: prop-name)
       (cond
-        [(free-id-table-ref properties prop-name)
+        [(free-id-set-member? properties prop-name)
          (match (lookup-id-type/lexical prop-name)
            [(? Struct-Property?) A])]
         [else #f])]

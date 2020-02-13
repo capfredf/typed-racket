@@ -7,7 +7,7 @@
          racket/pretty
          racket/list
          racket/set
-         syntax/id-table
+         syntax/id-set
          (except-in (path-up "utils/utils.rkt") infer)
          (path-up "rep/type-rep.rkt" "rep/prop-rep.rkt" "rep/object-rep.rkt"
                   "rep/core-rep.rkt" "rep/values-rep.rkt" "rep/fme-utils.rkt"
@@ -657,11 +657,11 @@
     [(? improper-tuple? t)
      `(List* ,@(map type->sexp (improper-tuple-elems t)))]
     [(Opaque: pred) `(Opaque ,(syntax->datum pred))]
-    [(Struct: nm par (list (fld: t _ _) ...) proc _ _ property-tys)
+    [(Struct: nm par (list (fld: t _ _) ...) proc _ _ properties)
      `#(,(string->symbol (format "struct:~a" (syntax-e nm)))
         ,(map t->s t)
         ,@(if proc (list (t->s proc)) null)
-        ,@(list (map syntax-e (free-id-table-keys property-tys))))]
+        ,@(free-id-set->list properties))]
     [(? Fun?)
      (parameterize ([current-print-type-fuel
                      (sub1 (current-print-type-fuel))])
