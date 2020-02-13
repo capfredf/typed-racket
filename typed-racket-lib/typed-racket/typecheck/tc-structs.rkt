@@ -17,7 +17,6 @@
 
 (provide tc/struct
          tc/struct-prop-values
-         tc/add-types-for-props-in-struct
          synth-make-struct-type-property
          name-of-struct d-s
          refine-struct-variance!
@@ -75,33 +74,6 @@
            #:with (prop-vals ...) #'())
   (pattern (#%plain-app list (#%plain-app cons prop-names prop-vals) ...)))
 
-(define (tc/add-types-for-props-in-struct form name)
-  (syntax-parse form
-    #:literals (define-values #%plain-app define-syntaxes begin #%expression let-values quote list cons make-struct-type values null)
-    [(define-values (struct-var r ...)
-       (let-values (((var1 r1 ...)
-                     (let-values ()
-                       (#%expression
-                        (let-values ()
-                          (#%plain-app make-struct-type _name _super-type _init-fcnt _auto-fcnt auto-v props:expanded-props r_args ...))))))
-         (#%plain-app values args-v ...)))
-     (let ([pnames (attribute props.prop-names)])
-       (unless (null? pnames)
-         (define sty (lookup-type-name name))
-         (define properties
-           (match sty
-             [(Struct: nm _ _ _ _ _ sptys) sptys]
-             [(Poly: ns (Struct: nm _ _ _ _ _ sptys)) #:when (mutable-free-id-table? sptys) sptys]))
-
-         (for/list ([p (in-list pnames)]
-                    [pval (in-list (attribute props.prop-vals))])
-           (match (single-value p)
-             [(tc-result1: (Struct-Property: ty _))
-              (free-id-table-set! properties p ty)]
-             [(tc-result1: ty)
-              (tc-error "expected a struct type property but got ~a" ty)]))))]
-
-    [(define-syntaxes (nm ...) . rest) (void)]))
 
 (define (tc/struct-prop-values form name)
   (syntax-parse form
