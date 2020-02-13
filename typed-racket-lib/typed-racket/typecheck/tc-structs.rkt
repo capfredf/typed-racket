@@ -91,7 +91,7 @@
          (define properties
            (match sty
              [(Struct: nm _ _ _ _ _ sptys) sptys]
-             [(Poly: ns (Struct: nm _ _ _ _ _ sptys)) #:when (and (hash? sptys) (not (immutable? sptys))) sptys]))
+             [(Poly: ns (Struct: nm _ _ _ _ _ sptys)) #:when (mutable-free-id-table? sptys) sptys]))
 
          (for/list ([p (in-list pnames)]
                     [pval (in-list (attribute props.prop-vals))])
@@ -119,7 +119,7 @@
          (define properties
            (match sty
              [(Struct: nm _ _ _ _ _ sptys) sptys]
-             [(Poly: ns (Struct: nm _ _ _ _ _ sptys)) #:when (and (hash? sptys) (not (immutable? sptys))) sptys]))
+             [(Poly: ns (Struct: nm _ _ _ _ _ sptys)) #:when (mutable-free-id-table? sptys) sptys]))
 
          (for/list ([p (in-list pnames)]
                     [pval (in-list (attribute props.prop-vals))])
@@ -127,20 +127,17 @@
              [(tc-result1: (Struct-Property: ty _))
               (match-define (F: var) -Self)
               (match-define (F: var-imp) -Imp)
-              (define p-ty (match sty
-                             [(Struct: _ _ _ _ _ _ _)
-                              (tc-expr/check pval (ret (subst var-imp sty (subst var sty ty))))]
-                             [(Poly-names: names sty)
-                              (let* ([v (subst var sty ty)]
-                                     [v (for/fold ([res sty]
-                                                   #:result (subst var-imp res v))
-                                                  ([n names])
-                                          (subst n (make-F (gensym n)) res))]
-                                     [v (ret v)])
-                                (extend-tvars names (tc-expr/check pval v)))]))
-              (match-define (tc-results: (list (tc-result: pt _ _)) _) p-ty)
-              (free-id-table-set! properties p pt)
-              p-ty]
+              (match sty
+                [(Struct: _ _ _ _ _ _ _)
+                 (tc-expr/check pval (ret (subst var-imp sty (subst var sty ty))))]
+                [(Poly-names: names sty)
+                 (let* ([v (subst var sty ty)]
+                        [v (for/fold ([res sty]
+                                      #:result (subst var-imp res v))
+                                     ([n names])
+                             (subst n (make-F (gensym n)) res))]
+                        [v (ret v)])
+                   (extend-tvars names (tc-expr/check pval v)))])]
              [(tc-result1: ty)
               (tc-error "expected a struct type property but got ~a" ty)]))))]
 

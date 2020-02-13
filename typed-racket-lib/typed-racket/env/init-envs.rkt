@@ -261,8 +261,8 @@
                    ,(and proc (type->sexp proc))
                    ,poly?
                    (quote-syntax ,pred-id)
-                   (make-free-id-table ,@(for/list ([(k v) (in-free-id-table properties)])
-                                           (cons `(quote-syntax ,k) (type->sexp v))))
+                   (make-free-id-table (list ,@(for/list ([(k v) (in-free-id-table properties)])
+                                                `(cons (quote-syntax ,k) ,(type->sexp v)))))
                    )]
     [(StructType: struct) `(make-StructType ,(type->sexp struct))]
     [(Struct-Property: ty pred-id) `(make-Struct-Property ,(type->sexp ty) (quote-syntax ,pred-id))]

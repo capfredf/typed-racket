@@ -10,8 +10,6 @@
 ;; (define bar? prop-ins-to-num?)
 
 
-; (struct (X Y) helloworld ([x : Y] [y : Y]) #:property prop-ins-to-num (cons 20 40))
-
 (struct posn ([x : Integer] [y : Integer])  #:property prop-ins-to-num (λ ([self : posn])
                                                                          20))
 

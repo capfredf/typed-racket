@@ -24,6 +24,7 @@
 (lazy-require
  ("../infer/infer.rkt" (infer))
  ("prop-ops.rkt" (-and))
+ ("../env/lexical-env.rkt" [lookup-id-type/lexical])
  ("../typecheck/tc-subst.rkt" (instantiate-obj+simplify))
  ("../typecheck/tc-envops.rkt" (env+ implies-in-env?)))
 
@@ -1204,8 +1205,11 @@
       #:when (free-identifier=? nm1 nm2)
       A]
      [(Has-Struct-Property: prop-name)
-      (if (free-id-table-ref properties prop-name) A
-          #f)]
+      (cond
+        [(free-id-table-ref properties prop-name)
+         (match (lookup-id-type/lexical prop-name)
+           [(? Struct-Property?) A])]
+        [else #f])]
      [(Val-able: (? (negate struct?) _)) #f]
      ;; subtyping on structs follows the declared hierarchy
      [_ (cond
