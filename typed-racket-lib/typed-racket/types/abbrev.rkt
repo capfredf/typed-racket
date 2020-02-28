@@ -7,7 +7,7 @@
 (require "../utils/utils.rkt"
          (utils prefab identifier)
          racket/list
-         syntax/id-table
+         syntax/id-set
          racket/match
          (prefix-in c: (contract-req))
          (rep rep-utils type-rep type-mask prop-rep object-rep values-rep)
@@ -163,7 +163,7 @@
 
 
 ;; Structs
-(define (-struct name parent flds [proc #f] [poly #f] [pred #'dummy] [props (make-free-id-table)])
+(define (-struct name parent flds [proc #f] [poly #f] [pred #'dummy] [props (immutable-free-id-set)])
   (make-Struct name parent flds proc poly pred props))
 
 ;; Function type constructors
