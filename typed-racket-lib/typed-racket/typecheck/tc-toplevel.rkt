@@ -609,6 +609,7 @@
 ;; syntax -> (or/c 'no-type tc-results/c)
 (define (tc-toplevel-form form)
   ;; Handle type aliases
+  (eprintf "Hello I am a test\n")
   (when (type-alias? form)
     (define-values (alias-names alias-map)
       (get-type-alias-info (list form)))
