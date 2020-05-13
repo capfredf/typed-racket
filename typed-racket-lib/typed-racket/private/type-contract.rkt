@@ -693,15 +693,15 @@
         (match-define (Struct-Property: _ (box pred?)) (lookup-id-type/lexical prop-name))
         ;; if original-name is only set when the type is added via require/typed
         (define real-prop-var (or (syntax-property prop-name 'original-name) prop-name))
-        (flat/sc #`(flat-named-contract '#,(syntax-e pred?) (lambda (x)
-                                                              (unless (struct-type-property-predicate-procedure? #,pred? #,real-prop-var)
-                                                                (raise-arguments-error 'struct-property
-                                                                                       "predicate does not match property"
-                                                                                       "predicate"
-                                                                                       #,pred?
-                                                                                       "property"
-                                                                                       #,real-prop-var))
-                                                              (#,pred? x))))]
+        (flat/sc #`(if (not (struct-type-property-predicate-procedure? #,pred? #,real-prop-var))
+                       (raise-arguments-error 'struct-property
+                                              "predicate does not match property"
+                                              "predicate"
+                                              #,pred?
+                                              "property"
+                                              #,real-prop-var)
+                       (flat-named-contract '#,(syntax-e pred?)
+                                            #,pred?)))]
        [(Prefab: key (list (app t->sc fld/scs) ...)) (prefab/sc key fld/scs)]
        [(PrefabTop: key)
         (flat/sc #`(struct-type-make-predicate
