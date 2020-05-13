@@ -695,7 +695,12 @@
         (define real-prop-var (or (syntax-property prop-name 'original-name) prop-name))
         (flat/sc #`(flat-named-contract '#,(syntax-e pred?) (lambda (x)
                                                               (unless (struct-type-property-predicate-procedure? #,pred? #,real-prop-var)
-                                                                (error 'struct-property (format "~v is not the property predicate of ~v" #,pred? #,real-prop-var)))
+                                                                (raise-arguments-error 'struct-property
+                                                                                       "predicate does not match property"
+                                                                                       "predicate"
+                                                                                       #,pred?
+                                                                                       "property"
+                                                                                       #,real-prop-var))
                                                               (#,pred? x))))]
        [(Prefab: key (list (app t->sc fld/scs) ...)) (prefab/sc key fld/scs)]
        [(PrefabTop: key)
