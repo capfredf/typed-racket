@@ -799,12 +799,7 @@
    (match t2
      [(Evt: result2) (subtype* A result1 result2)]
      [_ (continue<: A t1 t2 obj)])]
-  [(case: Exist (Exist-names: names b1))
-   ;;(eprintf "here am I ..................\n \n \n") 
-   (match t2
-     [(Fun: arrows1)
-      ;;(eprintf "I am here \n \n \n")
-      #f])]
+  [(case: Exist (Exist-names: names b1)) #f]
   [(case: F (F: var1))
    (match t2
      ;; tvars are equal if they are the same variable
