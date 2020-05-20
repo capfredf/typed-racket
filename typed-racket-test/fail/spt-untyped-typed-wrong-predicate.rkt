@@ -1,5 +1,5 @@
 #;
-(exn-pred "Type Checker: could not convert type to a contract")
+(exn-pred exn:fail:contract? #rx"struct-property: predicate does not match property")
 #lang racket
 
 (module untyped racket
@@ -20,7 +20,6 @@
   #;(bar (world)))
 
 
-(module+ main
-  (require (submod ".." typed))
-  (struct world [] #:property prop:foo 10)
-  (bar (world)))
+(require 'typed)
+(struct world [] #:property prop:foo 10)
+(bar (world))

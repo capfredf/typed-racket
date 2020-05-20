@@ -17,7 +17,6 @@
   #;(bar (world)))
 
 
-(module+ main
-  (require (submod ".." typed))
-  (struct world [] #:property prop:foo 10)
-  (bar 20))
+(require 'typed)
+(struct world [] #:property prop:foo 10)
+(bar 20)
