@@ -81,6 +81,7 @@
          racket/struct-info
          syntax/struct
          syntax/location
+         "../utils/require-contract.rkt"
          (for-template "../utils/any-wrap.rkt")
          "../utils/tc-utils.rkt"
          "../private/syntax-properties.rkt"
@@ -196,7 +197,7 @@
           (~optional (~and (~seq (~literal unsafe-kw))
                            (~bind [unsafe? #t]))
                      #:defaults ([unsafe? #f])))
-       (define/with-syntax hidden (generate-temporary #'nm.nm))
+       (define/with-syntax hidden (gen-hidden #'nm.nm))
        (define/with-syntax sm (if (attribute parent)
                                   #'(#:struct-maker parent)
                                   #'()))
