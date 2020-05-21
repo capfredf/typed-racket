@@ -1,5 +1,5 @@
 #;
-(exn-pred "Type Checker: could not convert type to a contract")
+(exn-pred exn:fail:contract? #rx"bar: contract violation")
 #lang racket
 
 (module untyped racket
