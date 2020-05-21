@@ -476,9 +476,7 @@
                [optimized/sc (if (from-typed? typed-side)
                                  unsafe-spp/sc
                                  safe-spp/sc)]
-               [spt-pred-procedure?/sc (if (from-typed? typed-side)
-                                           (flat/sc #'struct-type-property-predicate-procedure?)
-                                           (flat/sc #'struct-type-property-predicate-procedure?))])
+               [spt-pred-procedure?/sc (flat/sc #'struct-type-property-predicate-procedure?)])
           (or/sc optimized/sc spt-pred-procedure?/sc (t->sc/fun t)))]
        [(? Fun? t) (t->sc/fun t)]
        [(? DepFun? t) (t->sc/fun t)]
@@ -515,7 +513,13 @@
        [(Prompt-Tagof: s (Fun: (list (Arrow: ts _ _ _))))
         (prompt-tag/sc (map t->sc ts) (t->sc s))]
        [(F: v) #:when (string-prefix? (symbol->string v) "self-")
-               (fail #:reason "contract generation not supported for Self")]
+               any/sc]
+       [(Exist: n (Fun: (list (Arrow: _ _ _ (Values: (list (Result: rng (PropSet: (TypeProp: _ (F: n)) _) _)))))))
+        (match rng
+          [(Fun: (list (Arrow: (list (F: n) ...) _ _ r)))
+           (eprintf "~a ~a\n" r n)
+           (fail #:reason "contract generation!!!!!!!!!!")]
+          [_ (fail #:reason "contract generation not supported for this type of usage of Exist type")])]
        ;; TODO
        [(F: v)
         (triple-lookup
