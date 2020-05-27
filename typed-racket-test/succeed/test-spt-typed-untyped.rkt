@@ -2,12 +2,12 @@
 
 (module typed typed/racket
   (provide prop:foo foo?)
-  (: prop:foo (Struct-Property Number))
+  (: prop:foo (Struct-Property (-> Self Number)))
   (: foo? (-> Any Boolean : (Has-Struct-Property prop:foo)))
-  (: foo-ref (-> (Has-Struct-Property prop:foo) Number))
+  (: foo-ref (Exist X (-> (Has-Struct-Property prop:foo) (-> X Number) : X)))
   (define-values (prop:foo foo? foo-ref) (make-struct-type-property 'foo))
 
-  (provide bar bar1)
+  (provide bar bar1 foo-ref)
 
   (define (bar [x : (Has-Struct-Property prop:foo)])  : Number
     10)
@@ -18,5 +18,7 @@
 
 (module+ main
   (require (submod ".." typed))
-  (struct world [] #:property prop:foo 10)
-  (bar (world)))
+  (struct world [] #:property prop:foo (lambda (self) 10))
+  (define x (world))
+  (define y (world))
+  ((foo-ref x) y))

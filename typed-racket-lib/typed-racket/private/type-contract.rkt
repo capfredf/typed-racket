@@ -50,6 +50,22 @@
           #t)]
     [_ #f]))
 
+(require racket/contract/combinator)
+(define (eq/c x)
+    (make-contract #:name 'self
+                   #:first-order (λ (y)
+                                   (eq? x y))
+                   #;#;
+                   #:late-neg-projection
+                   (λ (blame)
+                     (λ (y neg-party)
+                       (if (eq? x y) x
+                           (raise-blame-error
+                            blame
+                            y
+                            '(expected: "~e" given: "~e")
+                            x y))))))
+
 (struct contract-def (type flat? maker? typed-side) #:prefab)
 
 ;; get-contract-def-property : Syntax -> (U False Contract-Def)
@@ -185,7 +201,8 @@
       typed-racket/utils/promise-not-name-contract
       typed-racket/utils/simple-result-arrow
       racket/sequence
-      racket/contract/parametric))
+      racket/contract/parametric
+      racket/contract/combinator))
 
 ;; Should the above requires be included in the output?
 ;;   This box is only used for contracts generated for `require/typed`
@@ -307,6 +324,7 @@
     ((both) (triple-both trip))))
 (define (same sc)
   (triple sc sc sc))
+
 
 (define (type->static-contract type init-fail
                                #:typed-side [typed-side #t])
@@ -512,21 +530,30 @@
        ;; TODO: this is not quite right for case->
        [(Prompt-Tagof: s (Fun: (list (Arrow: ts _ _ _))))
         (prompt-tag/sc (map t->sc ts) (t->sc s))]
-       [(F: v) #:when (string-prefix? (symbol->string v) "self-")
-               any/sc]
-       [(Exist: n (Fun: (list (Arrow: _ _ _ (Values: (list (Result: rng (PropSet: (TypeProp: _ (F: n)) _) _)))))))
+       [(Exist: n (Fun: (list (Arrow: (list dom) _ _ (Values: (list (Result: rng (PropSet: (TypeProp: _ (F: n)) _) _)))))))
         (match rng
-          [(Fun: (list (Arrow: (list (F: n) ...) _ _ r)))
-           (eprintf "~a ~a\n" r n)
-           (fail #:reason "contract generation!!!!!!!!!!")]
+          [(Fun: (list (Arrow: (list-rest (F: n1) a ... rst) _ _ r))) #:when (eq? n1 n)
+           #;
+           (eprintf "~a\n" (with-syntax ([(arg ...) (generate-temporaries (build-list (length rst) (λ (_) #'arg)))])
+                             #'10))
+           (define/with-syntax name n1)
+           (define lhs (t->sc dom))
+           (define eq-name (flat/sc #'(make-contract #:name 'self
+                                                     #:first-order (λ (y)
+                                                                     (eq? name y)))))
+           (define rhs (t->sc rng #:recursive-values (hash-set recursive-values n1
+                                                               (same eq-name))))
+           (exist/sc (list #'name) lhs rhs)]
           [_ (fail #:reason "contract generation not supported for this type of usage of Exist type")])]
        ;; TODO
        [(F: v)
-        (triple-lookup
-         (hash-ref recursive-values v
-                   (λ () (error 'type->static-contract
-                                "Recursive value lookup failed. ~a ~a" recursive-values v)))
-         typed-side)]
+        (cond
+          [(string-prefix? (symbol->string v) "self-") any/sc]
+          [(triple-lookup
+             (hash-ref recursive-values v
+                       (λ () (error 'type->static-contract
+                                    "Recursive value lookup failed. ~a ~a" recursive-values v)))
+             typed-side)])]
        [(BoxTop:) (only-untyped box?/sc)]
        [(ChannelTop:) (only-untyped channel?/sc)]
        [(Async-ChannelTop:) (only-untyped async-channel?/sc)]
