@@ -4,7 +4,7 @@
          syntax/struct syntax/parse racket/function racket/match racket/list syntax/id-set
          (prefix-in c: (contract-req))
          
-         (rep free-variance values-rep)
+         (rep type-rep free-variance values-rep)
          (private parse-type syntax-properties)
          (types base-abbrev abbrev subtype utils resolve substitute struct-table)
          (env global-env type-name-env type-alias-env tvar-env lexical-env)
@@ -546,10 +546,9 @@
 
 (define/cond-contract (synth-make-struct-type-property prop-name pred-id struct-property-ty)
   (syntax?  Type? . c:-> . tc-results/c)
-  (match-define (Struct-Property: ty bpred) struct-property-ty)
-  (cond
-    [(not (unbox bpred))
-     (set-box! bpred pred-id)
+  (match struct-property-ty
+    [(Struct-Property: ty #f)
+     (set-struct-property-pred! struct-property-ty pred-id)
      (define has-spty (make-Has-Struct-Property prop-name))
      (values->tc-results (make-Values (list (-result struct-property-ty -true-propset -empty-obj)
                                             (-result (make-pred-ty has-spty))
@@ -557,4 +556,4 @@
                                                                              #:props (-PS (-is-type 0 -Self)
                                                                                           (-not-type 0 -Self))))))))
                                              '())]
-    [else (error 'tc-struct "the predicate for ~a was set before typechecking the creation of ~a" prop-name)]))
+    [_ (error 'tc-struct "the predicate for ~a was set before typechecking the creation of ~a" prop-name)]))

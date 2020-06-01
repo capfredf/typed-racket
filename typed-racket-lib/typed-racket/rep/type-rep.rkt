@@ -69,8 +69,10 @@
          instantiate-obj
          abstract-obj
          substitute-names
+         set-struct-property-pred!
          DepFun/ids:
          Exist-names:
+         Struct-Property?
          (rename-out [Union:* Union:]
                      [Intersection:* Intersection:]
                      [make-Intersection* make-Intersection]
@@ -92,6 +94,8 @@
                      [PolyDots-body* PolyDots-body]
                      [PolyRow-body* PolyRow-body]
                      [Intersection-prop* Intersection-prop]
+                     [Struct-Property* make-Struct-Property]
+                     [Struct-Property:* Struct-Property:]
                      [Exist* make-Exist]
                      [Exist:* Exist:]))
 
@@ -734,11 +738,29 @@
 (def-type Struct-Property
   ([elem Type?]
    [pred-id (box/c (or/c identifier? false/c))])
+  #:no-provide
   [#:frees (f) (f elem)]
-  [#:fmap (f) (make-Struct-Property (f elem) (unbox pred-id))]
+  [#:fmap (f) (make-Struct-Property (f elem) pred-id)]
   [#:for-each (f) (f elem)]
   [#:custom-constructor
-   (make-Struct-Property elem (box (if (not pred-id) #f (normalize-id pred-id))))])
+   (define p (unbox pred-id))
+   (make-Struct-Property elem (box (if (not p) #f (normalize-id p))))])
+
+(define (Struct-Property* elem pred-id)
+  (make-Struct-Property elem (box pred-id)))
+
+(define (set-struct-property-pred! spty pred-id)
+  (set-box! (Struct-Property-pred-id spty) pred-id))
+
+(define-match-expander Struct-Property:*
+  (lambda (stx)
+    (syntax-case stx ()
+      [(_ elem pred-id)
+       #'(? Struct-Property?
+            (app (λ (t)
+                   (list (Struct-Property-elem t)
+                         (unbox (Struct-Property-pred-id t))))
+                 (list elem pred-id)))])))
 
 (def-type Has-Struct-Property ([name identifier?])
   #:base

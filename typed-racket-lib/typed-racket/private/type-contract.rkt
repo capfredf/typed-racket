@@ -533,14 +533,11 @@
        [(Exist: n (Fun: (list (Arrow: (list dom) _ _ (Values: (list (Result: rng (PropSet: (TypeProp: _ (F: n)) _) _)))))))
         (match rng
           [(Fun: (list (Arrow: (list-rest (F: n1) a ... rst) _ _ r))) #:when (eq? n1 n)
-           #;
-           (eprintf "~a\n" (with-syntax ([(arg ...) (generate-temporaries (build-list (length rst) (λ (_) #'arg)))])
-                             #'10))
            (define/with-syntax name n1)
            (define lhs (t->sc dom))
-           (define eq-name (flat/sc #'(make-contract #:name 'self
-                                                     #:first-order (λ (y)
-                                                                     (eq? name y)))))
+           (define eq-name (flat/sc #'(make-flat-contract #:name (format "not the same as ~a" name)
+                                                          #:first-order (λ (y)
+                                                                          (eq? name y)))))
            (define rhs (t->sc rng #:recursive-values (hash-set recursive-values n1
                                                                (same eq-name))))
            (exist/sc (list #'name) lhs rhs)]
@@ -721,7 +718,7 @@
        [(Has-Struct-Property: orig-id)
         ;; we can't call syntax-local-value/immediate in has-struct-property case in parse-type
         (define-values (a prop-name) (syntax-local-value/immediate orig-id (λ () (values #t orig-id))))
-        (match-define (Struct-Property: _ (box pred?)) (lookup-id-type/lexical prop-name))
+        (match-define (Struct-Property: _ pred?) (lookup-id-type/lexical prop-name))
         ;; if original-name is only set when the type is added via require/typed
         (define real-prop-var (or (syntax-property prop-name 'original-name) prop-name))
         (define real-pred-var (or (syntax-property pred? 'original-name) (syntax-e pred?)))
