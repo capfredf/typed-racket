@@ -805,9 +805,11 @@
        (parse-quoted-type #'t)]
       [(:All^ . rest)
        (parse-all-type stx)]
-      [(:Exist^ x:id . t:omit-parens)
-       (extend-tvars (list (syntax-e #'x))
-                     (make-Exist (syntax-e #'x) (parse-type #'t.type)))]
+      [(:Exist^ (x:id ...) . t:omit-parens)
+       (define names (map syntax-e (syntax->list #'(x ...))))
+       (extend-tvars names
+                     (make-Exist names
+                                 (parse-type #'t.type)))]
       [(:Opaque^ p?:id)
        (make-Opaque #'p?)]
       [(:Distinction^ name:id unique-id:id rep-ty:expr)

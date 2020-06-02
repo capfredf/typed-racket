@@ -8,7 +8,7 @@
   (require/typed (submod ".." untyped)
     [foo? (-> Any Boolean)]
     [prop:foo (Struct-Property (-> Self Number) foo?)]
-    [foo-ref (Exist X (-> (Has-Struct-Property prop:foo) (-> X Number) : X))])
+    [foo-ref (Exist (X) (-> (Has-Struct-Property prop:foo) (-> X Number) : X))])
   (provide prop:foo bar foo-ref)
   #;(provide bar)
 

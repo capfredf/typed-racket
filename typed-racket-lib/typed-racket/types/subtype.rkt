@@ -813,7 +813,7 @@
      ;; special case when t1 can be collapsed into simpler arrow
      [((? DepFun? dfun) (app collapsable-arrows? (? Arrow? arrow1)))
       (arrow-subtype-dfun* A arrow1 dfun)]
-     [((Exist-names: n body) _)
+     [((Exist-names: (list n) body) _)
       (match-define (F: var) -Self)
       (match-define (Fun: (list arrow2)) (subst n -Self body))
       (arrow-subtype* A (car arrows1) arrow2)]

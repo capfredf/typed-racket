@@ -553,10 +553,11 @@
   [#:custom-constructor (make-Opaque (normalize-id pred))])
 
 ;; body is a type
-(def-type Exist ([body Type?])
+(def-type Exist ([n exact-nonnegative-integer?]
+                 [body Type?])
   #:no-provide
   [#:frees (f) (f body)]
-  [#:fmap (f) (make-Exist (f body))]
+  [#:fmap (f) (make-Exist n (f body))]
   [#:for-each (f) (f body)]
   #;
   [#:mask (λ (t) (mask (Exist-body t)))])
@@ -1924,35 +1925,42 @@
 ;;***************************************************************
 ;; Smart Constructors for Exist structs
 ;;***************************************************************
-(define (Exist* name body)
-  (define v (make-Exist (abstract-type body name)))
-  (hash-set! type-var-name-table v name)
-  v)
+(define (Exist* names body)
+  (cond
+    [(null? names) body]
+    [else (define v (make-Exist (length names) (abstract-type body names)))
+          (hash-set! type-var-name-table v names)
+          v]))
 
 ;; the 'smart' destructor
-(define (Exist-body* name t)
+(define (Exist-body* names t)
   (match t
-    [(Exist: body)
-     (instantiate-type body (make-F name))]))
+    [(Exist: n body)
+     (unless (= (length names) n)
+       (int-err "Wrong number of names: expected ~a got ~a" n (length names)))
+     (instantiate-type body (map make-F names))]))
 
 
 (define-match-expander Exist-names:
   (lambda (stx)
     (syntax-case stx ()
-      [(_ np bp)
+      [(_ nps bp)
        #'(? Exist?
-            (app (lambda (t) (let ([sym (hash-ref type-var-name-table t (λ _ (gensym)))])
-                               (list sym (Exist-body* sym t))))
-                 (list np bp)))])))
+            (app (lambda (t)
+                   (let* ([n (Exist-n t)]
+                          [syms (hash-ref type-var-name-table t (λ _ (build-list n (λ _ (gensym)))))])
+                     (list syms (Exist-body* syms t))))
+                 (list nps bp)))])))
 
 (define-match-expander Exist:*
   (lambda (stx)
     (syntax-case stx ()
-      [(_ np bp)
+      [(_ nps bp)
        #'(? Exist?
-            (app (lambda (t) (let ([sym (gensym)])
-                               (list sym (Exist-body* sym t))))
-                 (list np bp)))])))
+            (app (lambda (t) (let* ([n (Exist-n t)]
+                                   [syms (build-list n (λ _ (gensym)))])
+                               (list syms (Exist-body* syms t))))
+                 (list nps bp)))])))
 
 
 ;;***************************************************************

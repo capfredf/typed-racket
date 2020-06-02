@@ -530,7 +530,7 @@
        ;; TODO: this is not quite right for case->
        [(Prompt-Tagof: s (Fun: (list (Arrow: ts _ _ _))))
         (prompt-tag/sc (map t->sc ts) (t->sc s))]
-       [(Exist: n (Fun: (list (Arrow: (list dom) _ _ (Values: (list (Result: rng (PropSet: (TypeProp: _ (F: n)) _) _)))))))
+       [(Exist: (list n) (Fun: (list (Arrow: (list dom) _ _ (Values: (list (Result: rng (PropSet: (TypeProp: _ (F: n)) _) _)))))))
         (match rng
           [(Fun: (list (Arrow: (list-rest (F: n1) a ... rst) _ _ r))) #:when (eq? n1 n)
            (define/with-syntax name n1)
