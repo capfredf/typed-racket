@@ -8,7 +8,7 @@
          (for-syntax racket/base
                      syntax/parse))
 
-(provide require/contract define-ignored rename-without-provide gen-hidden)
+(provide require/contract define-ignored rename-without-provide)
 
 (define-syntax (define-ignored stx)
   (syntax-case stx ()
@@ -27,8 +27,6 @@
                                           'inferred-name
                                           (syntax-e #'name)))])]))
 
-(define (gen-hidden stx)
-  (syntax-property (generate-temporary stx) 'original-name stx))
 
 ;; Define a rename-transformer that's set up to avoid being provided
 ;; by all-defined-out or related forms.

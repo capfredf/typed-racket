@@ -23,4 +23,4 @@
   (struct world [] #:property prop:foo (λ (self) 10))
   (define x (world))
   (define y (world))
-  ((foo-ref x) x))
+  ((foo-ref x) y))

@@ -579,8 +579,7 @@
            #:attr pred? #f)
   (pattern (~seq i:expr p:expr)
            #:attr type #'i
-           #:attr pred? (let-values ([(_ rt) (syntax-local-value/immediate #'p (lambda () (values #f #'p)))])
-                          rt)))
+           #:attr pred? #'p))
 
 (define-splicing-syntax-class (legacy-full-latent doms)
   #:description "latent propositions and object"

@@ -197,7 +197,7 @@
           (~optional (~and (~seq (~literal unsafe-kw))
                            (~bind [unsafe? #t]))
                      #:defaults ([unsafe? #f])))
-       (define/with-syntax hidden (gen-hidden #'nm.nm))
+       (define/with-syntax hidden (generate-temporary #'nm.nm))
        (define/with-syntax sm (if (attribute parent)
                                   #'(#:struct-maker parent)
                                   #'()))
