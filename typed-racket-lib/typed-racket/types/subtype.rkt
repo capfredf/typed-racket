@@ -814,9 +814,10 @@
      [((? DepFun? dfun) (app collapsable-arrows? (? Arrow? arrow1)))
       (arrow-subtype-dfun* A arrow1 dfun)]
      [((Exist-names: (list n) body) _)
-      (match-define (F: var) -Self)
-      (match-define (Fun: (list arrow2)) (subst n -Self body))
-      (arrow-subtype* A (car arrows1) arrow2)]
+      (match-define (F: self-var) -Self)
+      (define n-arrow (subst self-var (make-F n) (car arrows1)))
+      (match-define (Fun: (list arrow2)) body)
+      (arrow-subtype* A n-arrow arrow2)]
      [((Fun: arrows2) _)
       (cond
         [(null? arrows1) #f]
