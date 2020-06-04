@@ -862,6 +862,19 @@ functions and continuation mark functions.
                 0
                 (add1 (list-length (cdr lst)))))
           (list-length (list 1 2 3))]}
+          
+@defform*[[(Exist (a ...) t)]]{ is an existential type where fresh variables
+@racket[a ...] may appear in @racket[t]. Currently there are no packing or
+unpacking expression for @racket[(Exist (A) t)]. If @racket[t] is a function
+type and @racket[a ...] appear in the return type, unpacking is done
+automatically when the function is applied.
+      @ex[(: foo (Exist (X) (-> Number (Pairof X (-> X Number)))))
+          (define (foo [n : Number])
+          (cons n (λ ([x : Number]) (+ x 10))))
+
+
+          (define a (foo 10))
+          ((cdr a) (car a))] }
 
 @defform[(Values t ...)]{is the type of a sequence of multiple values, with
 types @racket[t ...].  This can only appear as the return type of a

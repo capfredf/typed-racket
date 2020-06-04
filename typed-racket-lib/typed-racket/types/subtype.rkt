@@ -534,6 +534,9 @@
      #:when (and (null? (fv b2))
                  (null? (fi b2)))
      (subtype* A t1 b2 obj)]
+    [(_ (F: var)) #:when (and (not (hash-empty? (in-exist)))
+                              (hash-ref (in-exist) var #f))
+                  A]
     [(_ _) #f]))
 
 
@@ -574,6 +577,9 @@
         -Thread
         -Subprocess
         -Will-Executor))
+
+
+(define in-exist (make-parameter (make-immutable-hash)))
 
 (define event-univ-types (list -Place -Base-Place-Channel))
 (define num-seq-types (list -Byte -Index -NonNegFixnum -Nat))
@@ -801,10 +807,18 @@
      [_ (continue<: A t1 t2 obj)])]
   [(case: Exist (Exist-names: names b1)) #f]
   [(case: F (F: var1))
-   (match t2
-     ;; tvars are equal if they are the same variable
-     [(F: var2) (eq? var1 var2)]
-     [_ (continue<: A t1 t2 obj)])]
+   (cond
+     [(and (not (hash-empty? (in-exist)))
+            (match t1
+              [(F: var) (hash-ref (in-exist) var #f)]
+              [_ #f]))
+      A]
+     [else (match t2
+             ;; tvars are equal if they are the same variable
+             
+
+             [(F: var2) (eq? var1 var2)]
+             [_ (continue<: A t1 t2 obj)])])]
   [(case: Fun (Fun: arrows1))
    (match* (t2 arrows1)
      ;; special case when t1 can be collapsed into simpler arrow
@@ -814,10 +828,11 @@
      [((? DepFun? dfun) (app collapsable-arrows? (? Arrow? arrow1)))
       (arrow-subtype-dfun* A arrow1 dfun)]
      [((Exist-names: (list n) body) _)
-      (match-define (F: self-var) -Self)
-      (define n-arrow (subst self-var (make-F n) (car arrows1)))
-      (match-define (Fun: (list arrow2)) body)
-      (arrow-subtype* A n-arrow arrow2)]
+      (parameterize ([in-exist (hash-set (in-exist) n #t)])
+        (match-define (F: self-var) -Self)
+        (define n-arrow (subst self-var (make-F n) (car arrows1)))
+        (match-define (Fun: (list arrow2)) body)
+        (arrow-subtype* A n-arrow arrow2))]
      [((Fun: arrows2) _)
       (cond
         [(null? arrows1) #f]
