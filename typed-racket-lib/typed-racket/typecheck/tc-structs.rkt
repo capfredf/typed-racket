@@ -159,7 +159,7 @@
 ;; Constructs the Struct value for a structure type
 ;; The returned value has free type variables
 (define/cond-contract (mk/inner-struct-type names desc parent [property-names empty])
-  (c:-> struct-names? struct-desc? (c:or/c Struct? #f) Struct?)
+  (c:->* (struct-names? struct-desc? (c:or/c Struct? #f)) ((c:listof identifier?)) Struct?)
 
   (let* ([this-flds (for/list ([t (in-list (struct-desc-self-fields desc))]
                                [g (in-list (struct-names-getters names))])
@@ -545,7 +545,7 @@
                           opts.kernel-maker)]))
 
 (define/cond-contract (synth-make-struct-type-property prop-name pred-id struct-property-ty)
-  (syntax?  Type? . c:-> . tc-results/c)
+  (syntax? syntax? Type? . c:-> . tc-results/c)
   (match struct-property-ty
     [(Struct-Property: ty #f)
      (set-struct-property-pred! struct-property-ty pred-id)

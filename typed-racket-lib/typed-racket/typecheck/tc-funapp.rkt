@@ -79,7 +79,7 @@
       [(Fun: (list arrow))
        #:when (not (RestDots? (Arrow-rst arrow)))
        (tc/funapp1 f-stx args-stx arrow args-res expected)]
-      [(Exist-names: _ (Fun: (list arrow)))
+      [(Exist: _ (Fun: (list arrow)))
        (match-define (list (tc-results: (list (tc-result: t _ o)) _)) args-res)
        (let ([checked-ret (tc/funapp1 f-stx args-stx arrow args-res expected)])
          (match checked-ret

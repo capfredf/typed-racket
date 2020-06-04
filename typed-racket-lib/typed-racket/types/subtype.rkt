@@ -827,7 +827,7 @@
      ;; special case when t1 can be collapsed into simpler arrow
      [((? DepFun? dfun) (app collapsable-arrows? (? Arrow? arrow1)))
       (arrow-subtype-dfun* A arrow1 dfun)]
-     [((Exist-names: (list n) body) _)
+     [((Exist: (list n) body) _)
       (parameterize ([in-exist (hash-set (in-exist) n #t)])
         (match-define (F: self-var) -Self)
         (define n-arrow (subst self-var (make-F n) (car arrows1)))
