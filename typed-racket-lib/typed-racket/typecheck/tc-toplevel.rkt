@@ -316,7 +316,6 @@
        (define vars (list #'prop #'prop-pred #'prop-ref))
        (define ts (for/list ([s (in-list vars)])
                     (type-annotation s #:infer #t)))
-       (report-all-errors)
        (check-below (synth-make-struct-type-property #'prop
                                                      (second vars)
                                                      (first ts))

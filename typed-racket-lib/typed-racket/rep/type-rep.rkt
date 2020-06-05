@@ -733,9 +733,6 @@
 ;; Structs
 ;;************************************************************
 
-;; (def-structural Struct-Property ([elem #:contravariant]
-;;                                  [pred-id #:invariant]))
-
 (def-type Struct-Property
   ([elem Type?]
    [pred-id (box/c (or/c identifier? false/c))])

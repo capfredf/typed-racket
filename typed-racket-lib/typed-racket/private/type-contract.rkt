@@ -51,21 +51,6 @@
     [_ #f]))
 
 (require racket/contract/combinator)
-(define (eq/c x)
-    (make-contract #:name 'self
-                   #:first-order (λ (y)
-                                   (eq? x y))
-                   #;#;
-                   #:late-neg-projection
-                   (λ (blame)
-                     (λ (y neg-party)
-                       (if (eq? x y) x
-                           (raise-blame-error
-                            blame
-                            y
-                            '(expected: "~e" given: "~e")
-                            x y))))))
-
 (struct contract-def (type flat? maker? typed-side) #:prefab)
 
 ;; get-contract-def-property : Syntax -> (U False Contract-Def)
@@ -200,6 +185,7 @@
       typed-racket/utils/sealing-contract
       typed-racket/utils/promise-not-name-contract
       typed-racket/utils/simple-result-arrow
+      typed-racket/utils/eq-contract
       racket/sequence
       racket/contract/parametric
       racket/contract/combinator))
@@ -535,9 +521,7 @@
           [(Fun: (list (Arrow: (list-rest (F: n1) a ... rst) _ _ r))) #:when (eq? n1 n)
            (define/with-syntax name n1)
            (define lhs (t->sc dom))
-           (define eq-name (flat/sc #'(make-flat-contract #:name (format "not the same as ~a" name)
-                                                          #:first-order (λ (y)
-                                                                          (eq? name y)))))
+           (define eq-name (flat/sc #'(eq/c name)))
            (define rhs (t->sc rng #:recursive-values (hash-set recursive-values n1
                                                                (same eq-name))))
            (exist/sc (list #'name) lhs rhs)]
