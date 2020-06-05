@@ -1958,7 +1958,9 @@
       [(_ nps bp)
        #'(? Exist?
             (app (lambda (t) (let* ([n (Exist-n t)]
-                                   [syms (build-list n (λ _ (gensym)))])
+                                    [syms (cond
+                                            [(hash-ref type-var-name-table t #f) => (λ (names) (map gensym names))]
+                                            [else (build-list n (λ _ (gensym)))])])
                                (list syms (Exist-body* syms t))))
                  (list nps bp)))])))
 
