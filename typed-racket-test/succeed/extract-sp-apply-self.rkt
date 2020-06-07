@@ -11,7 +11,7 @@
 
 
 (struct posn ([x : Integer] [y : Integer])  #:property prop-ins-to-num (λ ([self : posn])
-                                                                         20))
+                                                                         (posn-x self)))
 
 (: p1 posn)
 (define p1 (posn 100 200))
