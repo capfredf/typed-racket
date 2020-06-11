@@ -525,11 +525,10 @@
            (define rhs (t->sc rng #:recursive-values (hash-set recursive-values n1
                                                                (same eq-name))))
            (exist/sc (list #'name) lhs rhs)]
-          [_ (fail #:reason "contract generation not supported for this type of usage of Exist type")])]
-       ;; TODO
+          [_ (fail #:reason "contract generation only supports Exist Type in this form: (Exist (X) (-> ty1 .. ty2 : X)")])]
        [(F: v)
         (cond
-          [(string-prefix? (symbol->string v) "self-") any/sc]
+          [(string-prefix? (symbol->string v) "self-") (fail #:reason "contract generation not supported for Self")]
           [(triple-lookup
              (hash-ref recursive-values v
                        (λ () (error 'type->static-contract
