@@ -1324,7 +1324,7 @@
 
 ;; Section 10.2.5
 [prop:exn:srclocs (-struct-property (-> -Self (-lst -Srcloc)) #'exn:srclocs?)]
-[exn:srclocs? (-> Univ B)]
+[exn:srclocs? (-> Univ B : (-has-struct-property prop:exn:srclocs))]
 [exn:srclocs-accessor (-> Univ (-lst Univ))] ;TODO
 
 ;; Section 10.3 (Delayed Evaluation)
@@ -1717,7 +1717,7 @@
  (Ident . ->opt . [(Un -Int (-val #f))] -Symbol)]
 
 ;; Section 12.4
-[set!-transformer? (-> Univ B)]
+[set!-transformer? (-> Univ B : (-has-struct-property prop:set!-transformer))]
 [make-set!-transformer (-> (-> (-Syntax Univ) (-Syntax Univ)) Univ)]
 [set!-transformer-procedure (-> Univ (-> (-Syntax Univ) (-Syntax Univ)))]
 [prop:set!-transformer (-struct-property (Un -Nat
@@ -1725,7 +1725,7 @@
                                                    [(-Self (-Syntax Univ)) (-Syntax Univ)]))
                                          #'set!-transformer?)]
 
-[rename-transformer? (-> Univ B)]
+[rename-transformer? (-> Univ B : (-has-struct-property prop:rename-transformer))]
 [make-rename-transformer (->opt (-Syntax Sym) [(-> (-Syntax Sym) (-Syntax Sym))] Univ)]
 [rename-transformer-target (-> Univ (-Syntax Sym))]
 [prop:rename-transformer (-struct-property (Un -Nat (-Syntax Sym) (-> -Self (-Syntax Sym)))
@@ -2311,17 +2311,17 @@
 [special-comment-value (-> -Special-Comment Univ)]
 
 ;; Section 13.8
-[custom-write? (-> Univ B)]
 [prop:custom-write (-struct-property (-> -Self -Output-Port (Un B (-val 1) (-val 0)) ManyUniv)
                                      #'custom-write?)]
+[custom-write? (-> Univ B : (-has-struct-property prop:custom-write))]
 [custom-write-accessor (-> Univ (-> Univ -Output-Port (Un B (-val 1) (-val 0)) ManyUniv))]
 
-[custom-print-quotable? (-> Univ B)]
 [prop:custom-print-quotable (-struct-property (Un (-val 'self)
                                                   (-val 'never)
                                                   (-val 'maybe)
                                                   (-val 'always))
                                               #'custom-print-quotable?)]
+[custom-print-quotable? (-> Univ B : (-has-struct-property prop:custom-print-quotable))]
 [custom-print-quotable-accessor (-> Univ Univ)]
 
 ;; Section 13.9
