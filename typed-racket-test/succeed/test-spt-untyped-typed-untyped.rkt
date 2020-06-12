@@ -18,7 +18,7 @@
   #;(bar (world)))
 
 
-(require (submod ".." typed))
+(require (submod "." typed))
 (struct world [] #:property prop:foo (λ (self) 10))
 (define x (world))
 ((foo-ref x) x)

@@ -17,7 +17,7 @@
 
 (provide tc/struct
          tc/struct-prop-values
-         synth-make-struct-type-property
+         tc/make-struct-type-property
          name-of-struct d-s
          refine-struct-variance!
          register-parsed-struct-sty!
@@ -544,7 +544,7 @@
                           (list ty ...)
                           opts.kernel-maker)]))
 
-(define/cond-contract (synth-make-struct-type-property prop-name pred-id struct-property-ty)
+(define/cond-contract (tc/make-struct-type-property prop-name pred-id struct-property-ty)
   (syntax? syntax? Type? . c:-> . tc-results/c)
   (match struct-property-ty
     [(Struct-Property: ty #f)

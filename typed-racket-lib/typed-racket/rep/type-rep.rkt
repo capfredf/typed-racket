@@ -735,7 +735,13 @@
 
 (def-type Struct-Property
   ([elem Type?]
-   [pred-id (box/c (or/c identifier? false/c))])
+   ;; when a struct type property is created in a typed module, its type
+   ;; annotation comes first. The pred-id is set during typechecking
+   ;; `(make-struct-type-property p)`
+
+   ;; when a struct type property is annotated via require/typed, the pred-id is
+   ;; immediately set.
+   [pred-id (box/c (or/c identifier? false/c))]) 
   #:no-provide
   [#:frees (f) (f elem)]
   [#:fmap (f) (make-Struct-Property (f elem) pred-id)]

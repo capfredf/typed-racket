@@ -9,13 +9,14 @@
  (utils tc-utils prefab identifier)
  (env type-name-env row-constraint-env lexical-env)
  (rep core-rep rep-utils free-ids type-mask values-rep
-      base-types numeric-base-types)
+      base-types numeric-base-types free-variance)
  (types resolve utils printer match-expanders union subtype)
  (prefix-in t: (types abbrev numeric-tower subtype))
  (private parse-type syntax-properties)
  racket/match racket/syntax racket/list
  racket/format
  racket/string
+ racket/set
  syntax/flatten-begin
  (only-in (types abbrev) -Bottom -Boolean)
  (static-contracts instantiate structures combinators constraints)
@@ -516,16 +517,23 @@
        ;; TODO: this is not quite right for case->
        [(Prompt-Tagof: s (Fun: (list (Arrow: ts _ _ _))))
         (prompt-tag/sc (map t->sc ts) (t->sc s))]
-       [(Exist: (list n) (Fun: (list (Arrow: (list dom) _ _ (Values: (list (Result: rng (PropSet: (TypeProp: _ (F: n)) _) _)))))))
+       [(Exist: (list n) (Fun: (list (Arrow: (list dom) rst kw (Values: (list (Result: rng (PropSet: (TypeProp: _ (F: n)) _) _)))))))
+        (define (occur? t)
+          (if (or (not t) (empty? t)) #f
+              (set-member? (free-vars-names (free-vars* t)) n)))
+        (define (err)
+          (fail #:reason "contract generation only supports Exist Type in this form: (Exist (X) (-> ty1 .. ty2 : X)"))
+        ;; (when (ormap occur? (list rst kw)) (err))
+        
         (match rng
-          [(Fun: (list (Arrow: (list-rest (F: n1) a ... rst) _ _ r))) #:when (eq? n1 n)
+          [(Fun: (list (Arrow: (list-rest (F: n1) a ... rst) rst_i kw_i r)));; #:when (and (eq? n1 n) (not (ormap occur? (list rst_i kw_i)))) 
            (define/with-syntax name n1)
            (define lhs (t->sc dom))
            (define eq-name (flat/sc #'(eq/c name)))
            (define rhs (t->sc rng #:recursive-values (hash-set recursive-values n1
                                                                (same eq-name))))
            (exist/sc (list #'name) lhs rhs)]
-          [_ (fail #:reason "contract generation only supports Exist Type in this form: (Exist (X) (-> ty1 .. ty2 : X)")])]
+          [_ (err)])]
        [(F: v)
         (cond
           [(string-prefix? (symbol->string v) "self-") (fail #:reason "contract generation not supported for Self")]
@@ -703,8 +711,15 @@
         (define-values (a prop-name) (syntax-local-value/immediate orig-id (λ () (values #t orig-id))))
         (match-define (Struct-Property: _ pred?) (lookup-id-type/lexical prop-name))
         ;; if original-name is only set when the type is added via require/typed
+        
+        ;; the original-name of `prop-name` is its original referece in the unexpanded program.
         (define real-prop-var (or (syntax-property prop-name 'original-name) prop-name))
+
+        ;; a property is wrapped so we need its original reference
         (define real-pred-var (or (syntax-property pred? 'original-name) (syntax-e pred?)))
+        
+        ;; the `pred?` could be provided to a property through require/typed, 
+        ;; so we need to check if it is produced by the property
         (flat/sc #`(if (not (struct-type-property-predicate-procedure? #,pred? #,real-prop-var))
                        (raise-arguments-error 'struct-property
                                               "predicate does not match property"
