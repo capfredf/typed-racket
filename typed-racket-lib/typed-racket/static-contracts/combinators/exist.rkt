@@ -20,8 +20,12 @@
   #:transparent
   #:methods gen:sc
   [(define (sc-map v f)
-     v)
+     (match-define (exist-combinator (list names lhs rhs)) v)
+     (exist-combinator (list names (f lhs) (f rhs))))
    (define (sc-traverse v f)
+     (match-define (exist-combinator (list _ lhs rhs)) v)
+     (f lhs)
+     (f rhs)
      (void))
    (define (sc->contract v f)
      (match v

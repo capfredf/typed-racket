@@ -195,8 +195,7 @@
 (define-syntax-class sp-creator
   #:attributes (name)
   #:literals (#%plain-app make-struct-type-property)
-  (pattern (#%plain-app make-struct-type-property sym) #:attr name (match (syntax->datum #'sym)
-                                                                     [`',a a])))
+  (pattern (#%plain-app make-struct-type-property (quote a)) #:attr name #'a))
 
 ;; tc-toplevel/pass1.5 : syntax? -> (listof def-binding?)
 ;; Handles `define-values` that still need types synthesized. Runs after
@@ -309,7 +308,7 @@
        #:do [(register-ignored! #'expr)]
        'no-type]
 
-      ;; definitions just need to typecheck their bodies
+      ;; handle definitions that use make-struct-type-property 
       [(define-values (prop prop-pred prop-ref) expr:sp-creator)
        #:do [(register-ignored! #'expr)]
 
@@ -321,6 +320,7 @@
                                                   (first ts))
                     (ret ts))
        'no-type]
+      ;; definitions just need to typecheck their bodies
       [(define-values () expr)
        (tc-expr/check #'expr (ret empty))
        'no-type]
