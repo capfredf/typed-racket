@@ -30,6 +30,8 @@
       (for ([param (in-syntax #'(params ...))]
             [arg (in-syntax #'(args ...))])
         (match (single-value param)
+          [(tc-result1: (Is-a: (Param: a b)))
+           (tc-expr/check arg (ret a))]
           [(tc-result1: (Param: a b))
            (tc-expr/check arg (ret a))]
           [(tc-result1: t)

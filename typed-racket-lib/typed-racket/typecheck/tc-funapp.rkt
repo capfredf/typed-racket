@@ -76,7 +76,7 @@
     (match f-type
       ;; we special-case this (no case-lambda) for improved error messages
       ;; tc/funapp1 currently cannot handle drest arities
-      [(Fun: (list arrow))
+      [(Is-a: (Fun: (list arrow)))
        #:when (not (RestDots? (Arrow-rst arrow)))
        (tc/funapp1 f-stx args-stx arrow args-res expected)]
       [(Some: _ (Fun: (list arrow rst ...)))
@@ -120,7 +120,7 @@
                               "precondition" pre
                               #:delayed? #t))
            rng))]
-      [(Fun: arrows)
+      [(Is-a: (Fun: arrows))
        ;; check there are no RestDots
        #:when (not (for/or ([a (in-list arrows)])
                      (RestDots? (Arrow-rst a))))

@@ -30,7 +30,10 @@
 ;; Convenient constructors
 (define -App make-App)
 (define -mpair make-MPair)
-(define (-Param t1 [t2 t1]) (make-Param t1 t2))
+(define (-Param t1 [t2 t1])
+  (make-Intersection (list (make-Param t1 t2)
+                           (cl-> [(t1) -Void]
+                                 [() t2]))))
 (define -box make-Box)
 (define -channel make-Channel)
 (define -async-channel make-Async-Channel)
@@ -56,6 +59,7 @@
   (make-PrefabTop (normalize-prefab-key key field-count)))
 (define -unit make-Unit)
 (define -signature make-Signature)
+(define (-intersection . ts) (make-Intersection ts))
 
 (define (-seq . args) (make-Sequence args))
 (define/cond-contract (-seq-dots args dty dbound)
