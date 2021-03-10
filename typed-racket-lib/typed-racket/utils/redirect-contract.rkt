@@ -2,6 +2,7 @@
 
 (require syntax/private/modcollapse-noctc
          syntax/private/id-table
+         racket/match
          (for-template racket/base)
          "disarm.rkt")
 (provide make-make-redirect-to-contract)
@@ -36,8 +37,13 @@
      [(identifier? stx)
       (cond [(free-id-table-ref id-table stx #f)]
             [else
-             (with-syntax ([mp (collapse-module-path-index
-                                contract-defs-submod-modidx)]
+             (define mp (collapse-module-path-index contract-defs-submod-modidx))
+             (define mp^
+               (match mp
+                 [`(submod ,a . ,rst) #:when (path? a)
+                                      `(submod (file ,(path->string a)) . ,rst)]
+                 [_ mp]))
+             (with-syntax ([mp mp^]
                            [i (datum->syntax id (syntax-e id) stx stx)])
                (define new-id
                  (syntax-local-lift-require
