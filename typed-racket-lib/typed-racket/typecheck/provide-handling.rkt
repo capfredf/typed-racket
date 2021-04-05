@@ -84,7 +84,6 @@
        =>
        (match-lambda
          [(def-binding _ ty)
-          ;; (eprintf "def-binding ~a || ~a~n" internal-id ty)
           (mk-value-quad internal-id new-id ty)]
          [(def-struct-stx-binding _ (? struct-info? si) constr-type extra-constr-name)
           ;; (eprintf "def-struct-stx binding ~a || ~a~n" internal-id new-id)
@@ -123,6 +122,7 @@
       (for/list ([i (in-list (cons constr-new-id new-ids))])
         (and (identifier? i) #`(quote-syntax #,i))))
 
+    (eprintf "constr-defn ~a ~n" constr-defn)
     (with-syntax* ([id internal-id]
                    [export-id new-id]
                    [protected-id (freshen-id #'id)]
@@ -174,6 +174,7 @@
 
   ;; mk-value-quad : identifier? identifier? (or/c Type #f) -> quad/c
   (define (mk-value-quad internal-id new-id ty)
+    (eprintf "mk-value-quad ~a || ~a --------> ~a ~n" internal-id new-id ty)
     (with-syntax* ([id internal-id]
                    [untyped-id (freshen-id #'id)]
                    [local-untyped-id (freshen-id #'id)]
@@ -198,7 +199,7 @@
   (for/lists (defs export-defs provides aliases)
     ;; sort provs to generate deterministic output
     ([(internal-id external-ids) (in-sorted-free-id-table provs)])
-    ;; (eprintf "what is ~a ~a ~n" internal-id external-ids)
+    (eprintf "what is ~a ~a~n~n" internal-id external-ids)
     (define-values (defs export-def id alias) (mk internal-id))
     (define provide-forms
       (for/list ([external-id (in-list external-ids)])
