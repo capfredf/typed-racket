@@ -84,13 +84,17 @@
        =>
        (match-lambda
          [(def-binding _ ty)
+          ;; (eprintf "def-binding ~a || ~a~n" internal-id ty)
           (mk-value-quad internal-id new-id ty)]
          [(def-struct-stx-binding _ (? struct-info? si) constr-type extra-constr-name)
+          ;; (eprintf "def-struct-stx binding ~a || ~a~n" internal-id new-id)
           (mk-struct-syntax-quad internal-id new-id si constr-type extra-constr-name)]
          [(def-stx-binding _)
+          ;; (eprintf "def-stx-binding ~a || ~n" internal-id)
           (mk-syntax-quad internal-id new-id)])]
       ;; otherwise, not defined in this module, not our problem
-      [else (mk-ignored-quad internal-id)]))
+      [else ;; (eprintf "ignored internal ~a" internal-id)
+            (mk-ignored-quad internal-id)]))
 
   ;; mk-struct-syntax-quad : identifier? identifier? struct-info? Type? (or/c identifier? #f) -> quad/c
   ;; This handles `(provide s)` where `s` was defined with `(struct s ...)`. 
@@ -194,6 +198,7 @@
   (for/lists (defs export-defs provides aliases)
     ;; sort provs to generate deterministic output
     ([(internal-id external-ids) (in-sorted-free-id-table provs)])
+    ;; (eprintf "what is ~a ~a ~n" internal-id external-ids)
     (define-values (defs export-def id alias) (mk internal-id))
     (define provide-forms
       (for/list ([external-id (in-list external-ids)])

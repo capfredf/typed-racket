@@ -377,12 +377,12 @@
                                                          constructor-type))
                null)])
       (values (cons constructor-binding extra-constructor-bindings)
-              (append (cons (make-def-struct-stx-binding (struct-names-type-name names)
-                                                         si
-                                                         constructor-type
-                                                         extra-constructor)
-                            extra-constructor-bindings)
-                      bindings))))
+              (list*
+               (make-def-struct-stx-binding (struct-names-struct-name names)
+                                            si
+                                            constructor-type
+                                            extra-constructor)
+               (append extra-constructor-bindings bindings)))))
 
   (for ([b (in-list (append constructor-bindings bindings))])
     (register-type (binding-name b) (def-binding-ty b)))
