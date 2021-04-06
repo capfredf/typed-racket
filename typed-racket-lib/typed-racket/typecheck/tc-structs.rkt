@@ -299,6 +299,7 @@
        (list constructor-binding))
    (cons
     (make-def-struct-stx-binding (struct-names-type-name names)
+                                 (struct-names-struct-name names)
                                  si
                                  (def-binding-ty constructor-binding)
                                  extra-constructor)
@@ -378,7 +379,8 @@
                null)])
       (values (cons constructor-binding extra-constructor-bindings)
               (list*
-               (make-def-struct-stx-binding (struct-names-struct-name names)
+               (make-def-struct-stx-binding (struct-names-type-name names)
+                                            (struct-names-struct-name names)
                                             si
                                             constructor-type
                                             extra-constructor)

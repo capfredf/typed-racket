@@ -7,13 +7,14 @@
 (define-struct binding (name) #:transparent)
 (define-struct (def-binding binding) (ty) #:transparent)
 (define-struct (def-stx-binding binding) () #:transparent)
-(define-struct (def-struct-stx-binding def-stx-binding) (static-info constructor-type extra-constr-name) #:transparent)
+(define-struct (def-struct-stx-binding def-stx-binding) (sname static-info constructor-type extra-constr-name) #:transparent)
 
 (provide/cond-contract
  (struct binding ([name identifier?]))
  (struct (def-binding binding) ([name identifier?] [ty any/c]))
  (struct (def-stx-binding binding) ([name identifier?]))
- (struct (def-struct-stx-binding binding) ([name identifier?]
+ (struct (def-struct-stx-binding binding) ([name identifier?] ;; struct's type name
+                                           [sname identifier?] ;; struct name
                                            [static-info (or/c #f struct-info?)]
                                            [constructor-type any/c]
                                            [extra-constr-name (or/c #f identifier?)])))

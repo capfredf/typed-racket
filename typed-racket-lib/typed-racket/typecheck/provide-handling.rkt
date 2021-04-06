@@ -13,6 +13,7 @@
          (for-syntax racket/base)
          (for-template racket/base))
 
+(require "../base-env/type-name-error.rkt")
 (provide remove-provides provide? generate-prov)
 
 ;; Returns #t for safe provides. Returns #f for non-provide forms
@@ -85,19 +86,19 @@
        (match-lambda
          [(def-binding _ ty)
           (mk-value-quad internal-id new-id ty)]
-         [(def-struct-stx-binding _ (? struct-info? si) constr-type extra-constr-name)
-          ;; (eprintf "def-struct-stx binding ~a || ~a~n" internal-id new-id)
-          (mk-struct-syntax-quad internal-id new-id si constr-type extra-constr-name)]
+         [(def-struct-stx-binding _ sname (? struct-info? si) constr-type extra-constr-name)
+          (eprintf "def-struct-stx binding ~a || ~a~n" internal-id new-id)
+          (mk-struct-syntax-quad internal-id sname new-id si constr-type extra-constr-name)]
          [(def-stx-binding _)
-          ;; (eprintf "def-stx-binding ~a || ~n" internal-id)
+          (eprintf "def-stx-binding ~a || ~n" internal-id)
           (mk-syntax-quad internal-id new-id)])]
       ;; otherwise, not defined in this module, not our problem
-      [else ;; (eprintf "ignored internal ~a" internal-id)
+      [else (eprintf "ignored internal ~a~n" internal-id)
             (mk-ignored-quad internal-id)]))
 
   ;; mk-struct-syntax-quad : identifier? identifier? struct-info? Type? (or/c identifier? #f) -> quad/c
   ;; This handles `(provide s)` where `s` was defined with `(struct s ...)`. 
-  (define (mk-struct-syntax-quad internal-id new-id si constr-type extra-constr-name)
+  (define (mk-struct-syntax-quad internal-id sname new-id si constr-type extra-constr-name)
     (match-define (list type-desc constr pred (list accs ...) muts super) (extract-struct-info si))
     (define-values (defns export-defns new-ids aliases)
       (for/lists (defns export-defns new-ids aliases)
@@ -122,9 +123,8 @@
       (for/list ([i (in-list (cons constr-new-id new-ids))])
         (and (identifier? i) #`(quote-syntax #,i))))
 
-    (eprintf "constr-defn ~a ~n" constr-defn)
-    (with-syntax* ([id internal-id]
-                   [export-id new-id]
+    (with-syntax* ([id (freshen-id sname)]
+                   [export-id #'id]
                    [protected-id (freshen-id #'id)]
                    [type-is-constr? type-is-constructor?])
       (values
@@ -144,6 +144,13 @@
             ;; identifiers are copied out. Additionally, we can't put
             ;; a protected version in the submodule, since that
             ;; wouldn't be accessible by `syntax-local-value`.
+
+            #,(if (not type-is-constructor?)
+                  `(begin (define-syntax new-id
+                            (lambda (stx)
+                              (type-name-error stx)))
+                          (provide new-id))
+                  #'(begin) )
             (define-syntax protected-id
               (let ((info (list type-desc* (syntax export-id) pred* (list accs* ...)
                                 (list #,@(map (lambda (x) #'#f) accs)) super*)))

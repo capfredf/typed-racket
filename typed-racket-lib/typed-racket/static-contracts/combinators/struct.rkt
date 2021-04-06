@@ -37,7 +37,7 @@
          (void)]))
      (define (sc->contract v f)
        (match v
-        [(struct-combinator args name _)
+         [(struct-combinator args name _)
          #`(struct/c #,name #,@(map f args))]))
      (define (sc->constraints v f)
        (match v
