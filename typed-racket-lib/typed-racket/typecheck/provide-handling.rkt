@@ -141,18 +141,10 @@
             ;; identifiers are copied out. Additionally, we can't put
             ;; a protected version in the submodule, since that
             ;; wouldn't be accessible by `syntax-local-value`.
-
-            
-            #,(if (not type-is-constructor?)
-                  `(begin (define-syntax type-name
-                            (lambda (stx)
-                              (type-name-error stx)))
-                          (provide type-name))
-                  #'(begin) )
             (define-syntax protected-id
               (let ((info (list type-desc* (syntax export-id) pred* (list accs* ...)
                                 (list #,@(map (lambda (x) #'#f) accs)) super*)))
-                (make-struct-info-self-ctor constr* info)))
+                (make-struct-info-self-ctor constr* info (syntax type-name))))
             (define-syntax export-id
               (make-rename-transformer #'protected-id)))
         #'export-id

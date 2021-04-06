@@ -528,7 +528,7 @@
 
                          (define-syntax nm
                               (if id-is-ctor?
-                                  (make-struct-info-self-ctor #'internal-maker si)
+                                  (make-struct-info-self-ctor #'internal-maker si #'type)
                                   si))
 
                          (dtsi* (tvar ...) spec type (body ...) #:maker maker-name #:type-only)

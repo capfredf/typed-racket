@@ -232,14 +232,21 @@ at least theoretically.
     [_ (transfer-srcloc orig stx)]))
 
 
-(define (make-struct-info-self-ctor id info [flag #t])
-  (let ()
-    (struct struct-info-self-ctor (id info)
-      #:property prop:procedure
-      (lambda (ins stx)
-        (self-ctor-transformer (struct-info-self-ctor-id ins) stx))
-      #:property prop:struct-info (λ (x) (extract-struct-info (struct-info-self-ctor-info x))))
-    (struct-info-self-ctor id info)))
+(struct struct-info-self-ctor (id info type)
+  #:property prop:procedure
+  (lambda (ins stx)
+    (self-ctor-transformer (struct-info-self-ctor-id ins) stx))
+  #:property prop:struct-info (λ (x) (extract-struct-info (struct-info-self-ctor-info x))))
+
+(define (get-type-from-struct-info ins)
+  (if (struct-info-self-ctor? ins)
+      (struct-info-self-ctor-type ins)
+      #f))
+
+(provide get-type-from-struct-info)
+
+(define (make-struct-info-self-ctor id info [type #f])
+  (struct-info-self-ctor id info type))
 
 
 ;; Listof[A] Listof[B] B -> Listof[B]

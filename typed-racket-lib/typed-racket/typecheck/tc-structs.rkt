@@ -117,19 +117,22 @@
   (c:-> syntax? c:any/c (values identifier? (c:or/c Name? #f) (c:or/c Mu? Poly? Struct? Prefab? #f)))
   (syntax-parse nm/par
     [v:parent
-      (if (attribute v.par)
-          (let* ([parent0 (parse-type #'v.par)]
-                 [parent (let loop ((parent parent0))
-                               (cond
-                                 ((Name? parent) (loop (resolve-name parent)))
-                                 ((or (Poly? parent) (Mu? parent)
-                                      (if prefab? (Prefab? parent) (Struct? parent)))
-                                  parent)
-                                 (else
-                                  (tc-error/stx #'v.par "parent type not a valid structure name: ~a"
-                                                (syntax->datum #'v.par)))))])
-                (values #'v.name parent0 parent))
-          (values #'v.name #f #f))]))
+     (if (attribute v.par)
+         (let* ([parent-si-ins (syntax-local-value #'v.par)]
+                [parent0 (parse-type (cond
+                                       [(get-type-from-struct-info parent-si-ins)]
+                                       [else #'v.par]))]
+                [parent (let loop ((parent parent0))
+                          (cond
+                            ((Name? parent) (loop (resolve-name parent)))
+                            ((or (Poly? parent) (Mu? parent)
+                                 (if prefab? (Prefab? parent) (Struct? parent)))
+                             parent)
+                            (else
+                             (tc-error/stx #'v.par "parent type not a valid structure name: ~a"
+                                           (syntax->datum #'v.par)))))])
+           (values #'v.name parent0 parent))
+         (values #'v.name #f #f))]))
 
 
 ;; generate struct names given type name, field names
@@ -182,9 +185,10 @@
   ;; that parse-type will map the identifier to this Name type
   (define type-name (struct-names-type-name names))
   (define (register-alias alias)
-    (register-resolved-type-alias
-     alias
-     (make-Name type-name (length (struct-desc-tvars desc)) (Struct? sty))))
+    (register-resolved-type-alias alias
+                                  (make-Name type-name
+                                             (length (struct-desc-tvars desc))
+                                             (Struct? sty))))
   (register-alias type-name)
   (register-alias (struct-names-struct-name names))
   (register-type-name type-name
@@ -365,31 +369,24 @@
           null))))
 
   (define extra-constructor (struct-names-extra-constructor names))
-
   (define constructor-type (poly-wrapper (->* all-fields poly-base)))
-  
-  (define constructor-binding
-    (make-def-binding (struct-names-constructor names)
-                      constructor-type))
+  (define struct-binding (make-def-struct-stx-binding (struct-names-struct-name names)
+                                                      (struct-names-type-name names)
+                                                      si
+                                                      constructor-type
+                                                      extra-constructor))
+  (define def-bindings
+    (if extra-constructor
+        (cons (make-def-binding extra-constructor
+                                  constructor-type)
+              bindings)
+        bindings))
 
-  (define-values (constructor-bindings provided-bindings)
-    (let ([extra-constructor-bindings
-           (if extra-constructor (list (make-def-binding extra-constructor
-                                                         constructor-type))
-               null)])
-      (values (cons constructor-binding extra-constructor-bindings)
-              (list*
-               (make-def-struct-stx-binding (struct-names-struct-name names)
-                                            (struct-names-type-name names)
-                                            si
-                                            constructor-type
-                                            extra-constructor)
-               (append extra-constructor-bindings bindings)))))
-
-  (for ([b (in-list (append constructor-bindings bindings))])
+  (register-type (struct-names-constructor names) constructor-type)
+  (for ([b (in-list def-bindings)])
     (register-type (binding-name b) (def-binding-ty b)))
-    
-  provided-bindings)
+
+  (cons struct-binding def-bindings))
 
 
 
