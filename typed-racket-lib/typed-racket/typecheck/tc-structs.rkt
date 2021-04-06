@@ -372,15 +372,15 @@
     (make-def-binding (struct-names-constructor names)
                       constructor-type))
 
-  (define-values (constructor-bindings bindings^)
+  (define-values (constructor-bindings provided-bindings)
     (let ([extra-constructor-bindings
            (if extra-constructor (list (make-def-binding extra-constructor
                                                          constructor-type))
                null)])
       (values (cons constructor-binding extra-constructor-bindings)
               (list*
-               (make-def-struct-stx-binding (struct-names-type-name names)
-                                            (struct-names-struct-name names)
+               (make-def-struct-stx-binding (struct-names-struct-name names)
+                                            (struct-names-type-name names)
                                             si
                                             constructor-type
                                             extra-constructor)
@@ -389,12 +389,7 @@
   (for ([b (in-list (append constructor-bindings bindings))])
     (register-type (binding-name b) (def-binding-ty b)))
     
-  (append
-   (if (free-identifier=? (struct-names-type-name names)
-                          (struct-names-constructor names))
-      null
-      (list constructor-binding))
-   bindings^))
+  provided-bindings)
 
 
 

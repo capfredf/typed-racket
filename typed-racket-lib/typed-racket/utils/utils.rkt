@@ -234,14 +234,12 @@ at least theoretically.
 
 (define (make-struct-info-self-ctor id info [flag #t])
   (let ()
-    (struct struct-info-self-ctor (id info type-is-constr?)
+    (struct struct-info-self-ctor (id info)
       #:property prop:procedure
       (lambda (ins stx)
-        (if (struct-info-self-ctor-type-is-constr? ins)
-            (self-ctor-transformer (struct-info-self-ctor-id ins) stx)
-            (type-name-error stx)))
+        (self-ctor-transformer (struct-info-self-ctor-id ins) stx))
       #:property prop:struct-info (λ (x) (extract-struct-info (struct-info-self-ctor-info x))))
-    (struct-info-self-ctor id info flag)))
+    (struct-info-self-ctor id info)))
 
 
 ;; Listof[A] Listof[B] B -> Listof[B]

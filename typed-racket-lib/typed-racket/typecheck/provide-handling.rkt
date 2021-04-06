@@ -86,19 +86,16 @@
        (match-lambda
          [(def-binding _ ty)
           (mk-value-quad internal-id new-id ty)]
-         [(def-struct-stx-binding _ sname (? struct-info? si) constr-type extra-constr-name)
-          (eprintf "def-struct-stx binding ~a || ~a~n" internal-id new-id)
-          (mk-struct-syntax-quad internal-id sname new-id si constr-type extra-constr-name)]
+         [(def-struct-stx-binding _ tname (? struct-info? si) constr-type extra-constr-name)
+          (mk-struct-syntax-quad internal-id new-id tname si constr-type extra-constr-name)]
          [(def-stx-binding _)
-          (eprintf "def-stx-binding ~a || ~n" internal-id)
           (mk-syntax-quad internal-id new-id)])]
       ;; otherwise, not defined in this module, not our problem
-      [else (eprintf "ignored internal ~a~n" internal-id)
-            (mk-ignored-quad internal-id)]))
+      [else (mk-ignored-quad internal-id)]))
 
   ;; mk-struct-syntax-quad : identifier? identifier? struct-info? Type? (or/c identifier? #f) -> quad/c
   ;; This handles `(provide s)` where `s` was defined with `(struct s ...)`. 
-  (define (mk-struct-syntax-quad internal-id sname new-id si constr-type extra-constr-name)
+  (define (mk-struct-syntax-quad internal-id new-id tname si constr-type extra-constr-name)
     (match-define (list type-desc constr pred (list accs ...) muts super) (extract-struct-info si))
     (define-values (defns export-defns new-ids aliases)
       (for/lists (defns export-defns new-ids aliases)
@@ -107,7 +104,7 @@
             (mk e)
             (mk-ignored-quad e))))
 
-    (define type-is-constructor? (and (or (free-identifier=? new-id constr) extra-constr-name) #t))
+    (define type-is-constructor? (and (or (free-identifier=? tname constr) extra-constr-name) #t))
     ;; Here, we recursively handle all of the identifiers referenced
     ;; in this static struct info.
     (define-values (constr-defn constr-export-defn constr-new-id constr-aliases)
@@ -123,10 +120,10 @@
       (for/list ([i (in-list (cons constr-new-id new-ids))])
         (and (identifier? i) #`(quote-syntax #,i))))
 
-    (with-syntax* ([id (freshen-id sname)]
-                   [export-id #'id]
+    (with-syntax* ([id internal-id]
+                   [export-id new-id]
                    [protected-id (freshen-id #'id)]
-                   [type-is-constr? type-is-constructor?])
+                   [type-name tname])
       (values
         #`(begin
             #,constr-defn
@@ -145,16 +142,17 @@
             ;; a protected version in the submodule, since that
             ;; wouldn't be accessible by `syntax-local-value`.
 
+            
             #,(if (not type-is-constructor?)
-                  `(begin (define-syntax new-id
+                  `(begin (define-syntax type-name
                             (lambda (stx)
                               (type-name-error stx)))
-                          (provide new-id))
+                          (provide type-name))
                   #'(begin) )
             (define-syntax protected-id
               (let ((info (list type-desc* (syntax export-id) pred* (list accs* ...)
                                 (list #,@(map (lambda (x) #'#f) accs)) super*)))
-                (make-struct-info-self-ctor constr* info type-is-constr?)))
+                (make-struct-info-self-ctor constr* info)))
             (define-syntax export-id
               (make-rename-transformer #'protected-id)))
         #'export-id
@@ -181,7 +179,6 @@
 
   ;; mk-value-quad : identifier? identifier? (or/c Type #f) -> quad/c
   (define (mk-value-quad internal-id new-id ty)
-    (eprintf "mk-value-quad ~a || ~a --------> ~a ~n" internal-id new-id ty)
     (with-syntax* ([id internal-id]
                    [untyped-id (freshen-id #'id)]
                    [local-untyped-id (freshen-id #'id)]
@@ -205,8 +202,7 @@
   ;; Build the final provide with auxilliary definitions
   (for/lists (defs export-defs provides aliases)
     ;; sort provs to generate deterministic output
-    ([(internal-id external-ids) (in-sorted-free-id-table provs)])
-    (eprintf "what is ~a ~a~n~n" internal-id external-ids)
+             ([(internal-id external-ids) (in-sorted-free-id-table provs)])
     (define-values (defs export-def id alias) (mk internal-id))
     (define provide-forms
       (for/list ([external-id (in-list external-ids)])

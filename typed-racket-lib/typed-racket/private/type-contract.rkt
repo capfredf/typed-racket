@@ -119,7 +119,6 @@
 (define (generate-contract-def/provide stx cache)
   (match-define (list type untyped-id orig-id blame-id)
     (contract-def/provide-property stx))
-  (eprintf "in generate-contract-def/provide ~a ~a ~n" stx (list orig-id untyped-id))
   (define failure-reason #f)
   (define result
     (type->contract type
@@ -730,8 +729,7 @@
            (struct->recursive-sc #'n* nm flds
                                            (lambda (ftsc)
                                              (struct/sc nm (ormap values mut?) ftsc)))]
-          [else (eprintf "name is ~a ~n" nm)
-                (flat/sc #`(flat-named-contract '#,(syntax-e pred?) (lambda (x) (#,pred? x))))])]
+          [else (flat/sc #`(flat-named-contract '#,(syntax-e pred?) (lambda (x) (#,pred? x))))])]
        [(StructType: s)
         (if (from-untyped? typed-side)
             (fail #:reason (~a "cannot import structure types from"
