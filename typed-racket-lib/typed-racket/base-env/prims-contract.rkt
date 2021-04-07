@@ -408,7 +408,7 @@
 
 
 (module self-ctor racket/base
-  (require "../utils/utils.rkt")
+  (require "../utils/struct-extraction.rkt")
   (provide make-struct-info-self-ctor))
 
 (require (submod "." self-ctor))

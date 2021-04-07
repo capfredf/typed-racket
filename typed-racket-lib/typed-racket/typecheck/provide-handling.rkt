@@ -8,12 +8,11 @@
          (private syntax-properties)
          (typecheck renamer def-binding)
          (types struct-table)
-         (utils tc-utils)
+         (utils tc-utils struct-extraction)
          (env env-utils)
          (for-syntax racket/base)
          (for-template racket/base))
 
-(require "../base-env/type-name-error.rkt")
 (provide remove-provides provide? generate-prov)
 
 ;; Returns #t for safe provides. Returns #f for non-provide forms
