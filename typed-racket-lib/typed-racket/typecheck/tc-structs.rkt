@@ -118,10 +118,18 @@
   (syntax-parse nm/par
     [v:parent
      (if (attribute v.par)
-         (let* ([parent-si-ins (syntax-local-value #'v.par)]
-                [parent0 (parse-type (cond
-                                       [(get-type-from-struct-info parent-si-ins)]
-                                       [else #'v.par]))]
+         (let* ([parent-si-ins (syntax-local-value #'v.par (lambda () #f))]
+                [parent0 (parse-type
+                          (cond
+                            ;; get-type-from-struct-info only returns parent's
+                            ;; type name when parent-si-ins is an TR's
+                            ;; struct-info-self-ctor instance.
+                            [(get-type-from-struct-info parent-si-ins)]
+                            ;; When parent-si-ins is either simply #f or
+                            ;; a struct-info-self-ctor instance from untyped racket,
+                            ;; i.e. the parent is a builtin structure like exn,
+                            ;; the parent structure name is also the type name.
+                            [else #'v.par]))]
                 [parent (let loop ((parent parent0))
                           (cond
                             ((Name? parent) (loop (resolve-name parent)))
