@@ -104,7 +104,7 @@
             (mk e)
             (mk-ignored-quad e))))
 
-    (define sname-is-constructor? (free-identifier=? internal-id constr))
+    (define sname-is-constructor? (and (or extra-constr-name (free-identifier=? internal-id constr)) #t))
     (define type-is-sname? (free-identifier=? tname internal-id))
     ;; Here, we recursively handle all of the identifiers referenced
     ;; in this static struct info.
@@ -117,6 +117,7 @@
        [else
         (mk constr)]))
 
+    #;
     (define-values (type-defn type-defn-export)
       (if type-is-sname?
           (with-syntax ([type-name tname])
@@ -158,7 +159,7 @@
             (define-syntax protected-id
               (let ((info (list type-desc* (syntax export-id) pred* (list accs* ...)
                                 (list #,@(map (lambda (x) #'#f) accs)) super*)))
-                (make-struct-info-self-ctor constr* info (syntax type-name) #,sname-is-constructor?)))
+                (make-struct-info-self-ctor constr* info (syntax type-name) #,sname-is-constructor? #,type-is-sname?)))
             (define-syntax export-id
               (make-rename-transformer #'protected-id)))
         #'export-id
