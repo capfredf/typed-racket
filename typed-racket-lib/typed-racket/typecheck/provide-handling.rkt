@@ -104,7 +104,7 @@
             (mk e)
             (mk-ignored-quad e))))
 
-    (define type-is-constructor? (and (or (free-identifier=? tname constr) extra-constr-name) #t))
+    (define sname-is-constructor? (free-identifier=? internal-id constr))
     (define type-is-sname? (free-identifier=? tname internal-id))
     ;; Here, we recursively handle all of the identifiers referenced
     ;; in this static struct info.
@@ -123,6 +123,10 @@
             (values #'(define type-name type-name-error)
                     #'(provide type-name)))
           (values #'(begin) #'(begin))))
+
+    ;; if sname == tname, but sname != constr-name
+    ;; then sname and tname cannot be used a constructor, which means sname-is-constructor? is false.
+    ;; But tname can still used in the place of sname
 
     (define/with-syntax (constr* type-desc* pred* super* accs* ...)
       (for/list ([i (in-list (cons constr-new-id new-ids))])
@@ -154,7 +158,7 @@
             (define-syntax protected-id
               (let ((info (list type-desc* (syntax export-id) pred* (list accs* ...)
                                 (list #,@(map (lambda (x) #'#f) accs)) super*)))
-                (make-struct-info-self-ctor constr* info (syntax type-name) #,type-is-constructor?)))
+                (make-struct-info-self-ctor constr* info (syntax type-name) #,sname-is-constructor?)))
             (define-syntax export-id
               (make-rename-transformer #'protected-id)))
         #'export-id

@@ -78,18 +78,38 @@
     [_ (transfer-srcloc orig stx)]))
 
 
-(struct struct-info-self-ctor (id info type type-is-constr)
+;; struct-type-info-self-ctor is used when a struct's name can also be used as
+;; constructor.  struct-type-info is used when a struct's name is not used as a
+;; constructor (namely #:constructor-name is specified)
+
+(struct struct-info* (id info type)
   #:property prop:procedure
   (lambda (ins stx)
-    (if (struct-info-self-ctor-type-is-constr ins)
-        (self-ctor-transformer (struct-info-self-ctor-id ins) stx)
-        (type-name-error stx)))
-  #:property prop:struct-info (λ (x) (extract-struct-info (struct-info-self-ctor-info x))))
+    (raise-syntax-error #f "identifier for static struct-type information cannot be used as an expression" stx))
+
+  #:property prop:struct-info
+  (λ (x) (extract-struct-info (struct-info*-info x))))
+
+(struct struct-type-info* struct-info* ()
+  #:property prop:procedure
+  (lambda (ins stx)
+    (type-name-error stx)))
+
+(struct struct-type-info-self-ctor struct-type-info* ()
+  #:property prop:procedure
+  (lambda (ins stx)
+    (self-ctor-transformer (struct-info*-id ins) stx)))
 
 (define (get-type-from-struct-info ins)
-  (if (struct-info-self-ctor? ins)
-      (struct-info-self-ctor-type ins)
+  (if (struct-info*? ins)
+      (struct-info*-type ins)
       #f))
 
-(define (make-struct-info-self-ctor id info type [type-is-constr #t])
-  (struct-info-self-ctor id info type type-is-constr))
+;; TODO change type-is-constr? to sname-is-constr?
+(define (make-struct-info-self-ctor id info type [sname-is-constr? #t] [type-is-sname? #t])
+  (define s-ctor
+    (cond
+      [(and (not sname-is-constr?) (not type-is-sname?)) struct-info*]
+      [(and (not sname-is-constr?)) struct-type-info*]
+      [else struct-type-info-self-ctor]))
+  (s-ctor id info type))
