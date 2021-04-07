@@ -8,7 +8,7 @@
          (typecheck renamer def-binding)
          (types struct-table)
          (utils tc-utils)
-         (only-in (utils struct-info-helper) make-struct-info-self-ctor)
+         (only-in (utils struct-info-helper) make-struct-info-wrapper*)
          (env env-utils)
          (base-env type-name-error)
          (for-syntax racket/base)
@@ -159,7 +159,7 @@
             (define-syntax protected-id
               (let ((info (list type-desc* (syntax export-id) pred* (list accs* ...)
                                 (list #,@(map (lambda (x) #'#f) accs)) super*)))
-                (make-struct-info-self-ctor constr* info (syntax type-name) #,sname-is-constructor? #,type-is-sname?)))
+                (make-struct-info-wrapper* constr* info (syntax type-name) #,sname-is-constructor? #,type-is-sname?)))
             (define-syntax export-id
               (make-rename-transformer #'protected-id)))
         #'export-id

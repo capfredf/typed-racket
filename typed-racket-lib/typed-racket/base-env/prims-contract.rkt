@@ -517,7 +517,7 @@
 
                          (define-syntax nm
                               (if id-is-ctor?
-                                  (make-struct-info-self-ctor #'internal-maker si #'type)
+                                  (make-struct-info-wrapper* #'internal-maker si #'type)
                                   si))
 
                          (dtsi* (tvar ...) spec type (body ...) #:maker maker-name #:type-only)
@@ -533,10 +533,6 @@
                                #`(require/typed #:internal (maker-name extra-maker) type lib
                                                 #:struct-maker parent
                                                 #,@(if (attribute unsafe.unsafe?) #'(unsafe-kw) #'()))
-                               #'(begin))
-
-                         #,(if (not (free-identifier=? #'nm #'type))
-                               #'(define-syntax type type-name-error)
                                #'(begin))
 
                          #,@(if (attribute unsafe.unsafe?)

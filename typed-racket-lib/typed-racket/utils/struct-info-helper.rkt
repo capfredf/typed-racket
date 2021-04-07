@@ -3,10 +3,13 @@
 (provide extract-struct-info/checked
          extract-struct-info/checked/context
          validate-struct-fields
-         make-struct-info-self-ctor
-         get-type-from-struct-info)
+         make-struct-info-wrapper*
+         make-struct-info+type-wrapper
+         maybe-struct-info-wrapper-type)
 
 (require racket/struct-info
+         "utils.rkt"
+         (prefix-in c: (contract-req))
          "disarm.rkt"
          "../base-env/type-name-error.rkt")
 
@@ -19,7 +22,7 @@
     (and (identifier? #'id)
          (struct-info? (syntax-local-value #'id (lambda () #f))))
     (extract-struct-info (syntax-local-value #'id))]
-   [_
+   [_n
     (raise-syntax-error
      who
      "expected an identifier bound to a structure type" ctx id)]))
@@ -77,39 +80,51 @@
                                    stx)]
     [_ (transfer-srcloc orig stx)]))
 
+;; struct-info-wrapper is used when a structure's name serves one sole purpose:
+;; it will only be used in where a structure id is expected, e.g. struct-copy,
+;; super-id in structures' definitions.
 
-;; struct-type-info-self-ctor is used when a struct's name can also be used as
-;; constructor.  struct-type-info is used when a struct's name is not used as a
-;; constructor (namely #:constructor-name is specified)
-
-(struct struct-info* (id info type)
+;; id -- struct name
+;; info -- an struct-info instance for the structure
+;; type -- the type name of the struct
+(struct struct-info-wrapper (id info type)
   #:property prop:procedure
   (lambda (ins stx)
     (raise-syntax-error #f "identifier for static struct-type information cannot be used as an expression" stx))
-
   #:property prop:struct-info
-  (λ (x) (extract-struct-info (struct-info*-info x))))
+  (λ (x) (extract-struct-info (struct-info-wrapper-info x))))
 
-(struct struct-type-info* struct-info* ()
+;; struct-info+type-wrapper is used in either of the follow cases:
+;; 1. when a structure's name can also represent the structure type.
+;; 2. when a structure's type name is used as the structure name.
+(struct struct-info+type-wrapper struct-info-wrapper ()
   #:property prop:procedure
   (lambda (ins stx)
-    (type-name-error stx)))
+    (type-name-error stx))
+  #:extra-constructor-name make-struct-info+type-wrapper)
 
-(struct struct-type-info-self-ctor struct-type-info* ()
+;; struct-info+type+self-ctor-wrapper is used when a structure's name works as
+;; the constructor
+(struct struct-info+type+self-ctor-wrapper struct-info+type-wrapper ()
   #:property prop:procedure
   (lambda (ins stx)
-    (self-ctor-transformer (struct-info*-id ins) stx)))
+    (self-ctor-transformer (struct-info-wrapper-id ins) stx)))
 
-(define (get-type-from-struct-info ins)
-  (if (struct-info*? ins)
-      (struct-info*-type ins)
+;; when the argument is not an instance of any wrapper defined in this module,
+;; i.e. it's a struct-info of a built-in structure,
+;; the function returns the corresponding structure's type name
+(define (maybe-struct-info-wrapper-type ins)
+  (c:-> c:any/c (c:or/c #f identifier?))
+  (if (struct-info-wrapper? ins)
+      (struct-info-wrapper-type ins)
       #f))
 
-;; TODO change type-is-constr? to sname-is-constr?
-(define (make-struct-info-self-ctor id info type [sname-is-constr? #t] [type-is-sname? #t])
+;; create a *-wrapper instance based on sname-is-constr? and type-is-sname?
+(define/cond-contract (make-struct-info-wrapper* id info type [sname-is-constr? #t] [type-is-sname? #t])
+  (c:->* (identifier? struct-info? identifier?) (boolean? boolean?) struct-info-wrapper?)
   (define s-ctor
     (cond
-      [(and (not sname-is-constr?) (not type-is-sname?)) struct-info*]
-      [(and (not sname-is-constr?)) struct-type-info*]
-      [else struct-type-info-self-ctor]))
+      [(and (not sname-is-constr?) (not type-is-sname?)) struct-info-wrapper]
+      [(and (not sname-is-constr?)) struct-info+type-wrapper]
+      [else struct-info+type+self-ctor-wrapper]))
   (s-ctor id info type))

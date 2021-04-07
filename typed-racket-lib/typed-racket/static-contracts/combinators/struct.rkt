@@ -38,13 +38,15 @@
      (define (sc->contract v f)
        (match v
          [(struct-combinator args name _)
-         #`(struct/c #,name #,@(map f args))]))
+          #`(struct/c #,name #,@(map f args))]))
      (define (sc->constraints v f)
        (match v
         [(struct-combinator args _ mut?)
-         (merge-restricts*
-           (if mut? 'chaperone 'flat)
-           (map (lambda (a) (if (not mut?) (add-constraint (f a) 'chaperone) (f a))) args))]))])
+         (merge-restricts* (if mut? 'chaperone 'flat)
+                           (map (lambda (a)
+                                  (if (not mut?) (add-constraint (f a) 'chaperone)
+                                      (f a)))
+                                args))]))])
 
 (define (struct/sc name mut? fields)
   (struct-combinator fields name mut?))

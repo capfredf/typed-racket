@@ -9,7 +9,7 @@
          (types base-abbrev abbrev subtype utils resolve substitute struct-table)
          (env global-env type-name-env type-alias-env tvar-env lexical-env)
          (utils tc-utils prefab identifier)
-         (only-in (utils struct-info-helper) get-type-from-struct-info)
+         (only-in (utils struct-info-helper) maybe-struct-info-wrapper-type)
          (typecheck typechecker def-binding internal-forms error-message tc-subst)
          (for-syntax syntax/parse racket/base)
          (for-template racket/base))
@@ -122,10 +122,10 @@
          (let* ([parent-si-ins (syntax-local-value #'v.par (lambda () #f))]
                 [parent0 (parse-type
                           (cond
-                            ;; get-type-from-struct-info only returns parent's
+                            ;; maybe-struct-info-wrapper-type only returns parent's
                             ;; type name when parent-si-ins is an TR's
                             ;; struct-info-self-ctor instance.
-                            [(get-type-from-struct-info parent-si-ins)]
+                            [(maybe-struct-info-wrapper-type parent-si-ins)]
                             ;; When parent-si-ins is either simply #f or
                             ;; a struct-info-self-ctor instance from untyped racket,
                             ;; i.e. the parent is a builtin structure like exn,
