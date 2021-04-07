@@ -88,9 +88,9 @@
          "../private/cast-table.rkt"
          "../private/type-contract.rkt"
          "../typecheck/internal-forms.rkt"
-         ;; struct-extraction is actually used at both of these phases
-         "../utils/struct-extraction.rkt"
-         (for-syntax "../utils/struct-extraction.rkt"
+         ;; struct-info-helper is actually used at both of these phases
+         "../utils/struct-info-helper.rkt"
+         (for-syntax "../utils/struct-info-helper.rkt"
                      "type-name-error.rkt")
          (only-in "../utils/utils.rkt" syntax-length)
          (for-template racket/base "ann-inst.rkt"))
@@ -408,7 +408,7 @@
 
 
 (module self-ctor racket/base
-  (require "../utils/struct-extraction.rkt")
+  (require "../utils/struct-info-helper.rkt")
   (provide make-struct-info-self-ctor))
 
 (require (submod "." self-ctor))

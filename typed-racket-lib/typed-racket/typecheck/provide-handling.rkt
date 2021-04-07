@@ -8,7 +8,7 @@
          (private syntax-properties)
          (typecheck renamer def-binding)
          (types struct-table)
-         (utils tc-utils struct-extraction)
+         (utils tc-utils struct-info-helper)
          (env env-utils)
          (for-syntax racket/base)
          (for-template racket/base))
