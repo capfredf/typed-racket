@@ -373,7 +373,6 @@
                   new-ty-ctc 'cast 'typed-world))])]))
 
 
-
 (define (require/opaque-type stx)
   (define-syntax-class unsafe-id
     (pattern (~literal unsafe-kw)))
@@ -406,18 +405,8 @@
            #,(ignore #'(require/contract pred hidden pred-cnt lib)))))]))
 
 
-
-(module self-ctor racket/base
-  (require "../utils/struct-info-helper.rkt")
-  (provide make-struct-info-self-ctor))
-
-(require (submod "." self-ctor))
-
-
-
 (define-values (require-typed-struct-legacy require-typed-struct)
  (let ()
-
   (define-splicing-syntax-class (constructor-term legacy struct-name)
    (pattern (~seq) #:fail-when legacy #f #:attr name struct-name #:attr extra #f)
    (pattern (~seq) #:fail-unless legacy #f #:attr name (format-id struct-name "make-~a" struct-name)

@@ -7,8 +7,10 @@
          (private syntax-properties)
          (typecheck renamer def-binding)
          (types struct-table)
-         (utils tc-utils struct-info-helper)
+         (utils tc-utils)
+         (only-in (utils struct-info-helper) make-struct-info-self-ctor)
          (env env-utils)
+         (base-env type-name-error)
          (for-syntax racket/base)
          (for-template racket/base))
 
@@ -103,6 +105,7 @@
             (mk-ignored-quad e))))
 
     (define type-is-constructor? (and (or (free-identifier=? tname constr) extra-constr-name) #t))
+    (define type-is-sname? (free-identifier=? tname internal-id))
     ;; Here, we recursively handle all of the identifiers referenced
     ;; in this static struct info.
     (define-values (constr-defn constr-export-defn constr-new-id constr-aliases)
@@ -113,6 +116,13 @@
         (mk-value-quad constr (generate-temporary constr) constr-type)]
        [else
         (mk constr)]))
+
+    (define-values (type-defn type-defn-export)
+      (if type-is-sname?
+          (with-syntax ([type-name tname])
+            (values #'(define type-name type-name-error)
+                    #'(provide type-name)))
+          (values #'(begin) #'(begin))))
 
     (define/with-syntax (constr* type-desc* pred* super* accs* ...)
       (for/list ([i (in-list (cons constr-new-id new-ids))])
@@ -125,9 +135,11 @@
       (values
         #`(begin
             #,constr-defn
+            ;;#,type-defn
             #,@defns)
         #`(begin
             #,constr-export-defn
+            ;;#,type-defn-export
             #,@export-defns
             ;; Here, we construct a new static struct identifier whose
             ;; contents point to newly-defined identifiers that are

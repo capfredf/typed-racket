@@ -5,7 +5,6 @@
              "standard-inits.rkt")
  ;; these need to be available to the generated code
  "typecheck/renamer.rkt" syntax/location
- (for-syntax (submod "base-env/prims-contract.rkt" self-ctor))
  (for-syntax "utils/struct-info-helper.rkt")
  (for-syntax "typecheck/renamer.rkt")
  ;; only for timing/debugging
