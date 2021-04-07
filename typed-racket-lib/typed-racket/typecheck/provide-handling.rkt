@@ -1,7 +1,6 @@
 #lang racket/base
 
 (require "../utils/utils.rkt"
-         "renamer.rkt"
          racket/sequence syntax/id-table racket/syntax
          racket/struct-info racket/match syntax/parse
          (only-in (private type-contract) include-extra-requires?)
@@ -143,7 +142,7 @@
             (define-syntax protected-id
               (let ((info (list type-desc* (syntax export-id) pred* (list accs* ...)
                                 (list #,@(map (lambda (x) #'#f) accs)) super*)))
-                (make-struct-info-self-ctor constr* info (syntax type-name))))
+                (make-struct-info-self-ctor constr* info (syntax type-name) #,type-is-constructor?)))
             (define-syntax export-id
               (make-rename-transformer #'protected-id)))
         #'export-id

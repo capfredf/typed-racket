@@ -7,7 +7,8 @@
          get-type-from-struct-info)
 
 (require racket/struct-info
-         "disarm.rkt")
+         "disarm.rkt"
+         "../base-env/type-name-error.rkt")
 
 (define (extract-struct-info/checked id)
   (extract-struct-info/checked/context id 'require/typed #f))
@@ -60,9 +61,6 @@
         ctx field-id)))
   (void))
 
-
-
-(provide make-struct-info-self-ctor)
 ;Copied from racket/private/define-struct
 ;FIXME when multiple bindings are supported
 (define (self-ctor-transformer orig stx)
@@ -80,10 +78,12 @@
     [_ (transfer-srcloc orig stx)]))
 
 
-(struct struct-info-self-ctor (id info type)
+(struct struct-info-self-ctor (id info type type-is-constr)
   #:property prop:procedure
   (lambda (ins stx)
-    (self-ctor-transformer (struct-info-self-ctor-id ins) stx))
+    (if (struct-info-self-ctor-type-is-constr ins)
+        (self-ctor-transformer (struct-info-self-ctor-id ins) stx)
+        (type-name-error stx)))
   #:property prop:struct-info (λ (x) (extract-struct-info (struct-info-self-ctor-info x))))
 
 (define (get-type-from-struct-info ins)
@@ -91,7 +91,5 @@
       (struct-info-self-ctor-type ins)
       #f))
 
-(provide get-type-from-struct-info)
-
-(define (make-struct-info-self-ctor id info [type #f])
-  (struct-info-self-ctor id info type))
+(define (make-struct-info-self-ctor id info type [type-is-constr #t])
+  (struct-info-self-ctor id info type type-is-constr))
