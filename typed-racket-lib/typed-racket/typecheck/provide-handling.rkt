@@ -49,8 +49,6 @@
 ;;
 ;; The second value is a list of two element lists, which are type name aliases.
 (define (generate-prov defs provs pos-blame-id mk-redirect-id)
-  (for ([(k v) (in-free-id-table provs)])
-    (eprintf "def is ~a ~a ~n" k v))
   ;; maps ids defined in this module to an identifier which is the possibly-contracted version of the key
   (define mapping (make-free-id-table))
 
@@ -95,14 +93,10 @@
           (mk-struct-syntax-quad internal-id new-id tname si constr-type extra-constr-name)]
          [(def-struct-type-binding _ sname (? struct-info? si))
           (match-define (list type-desc constr pred (list accs ...) muts super) (extract-struct-info si))
-          (eprintf "~a ~n" muts)
-          (eprintf "info ~a ~n" (struct-info? (list type-desc constr pred
-                                                    accs
-                                                    (list #f) super)))
           (with-syntax* ([id internal-id]
                          [export-id new-id]
                          [untyped-id (freshen-id #'id)])
-            
+
             (values
              #`(begin)
              ;; There's no need to put this macro in the submodule since it
@@ -124,9 +118,10 @@
              #'export-id
              (list (list #'export-id #'id))))]
          [(def-stx-binding _)
-          (mk-syntax-quad internal-id new-id)]
-         ;; otherwise, not defined in this module, not our problem
-         [else (mk-ignored-quad internal-id)])]))
+          (mk-syntax-quad internal-id new-id)])]
+      [else
+       ;; otherwise, not defined in this module, not our problem
+       (mk-ignored-quad internal-id)]))
 
   ;; mk-struct-syntax-quad : identifier? identifier? struct-info? Type? (or/c identifier? #f) -> quad/c
   ;; This handles `(provide s)` where `s` was defined with `(struct s ...)`. 

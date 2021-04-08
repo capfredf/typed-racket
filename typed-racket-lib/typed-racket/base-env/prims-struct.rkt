@@ -18,6 +18,7 @@
                      syntax/stx
                      racket/list
                      racket/syntax
+                     racket/match
                      racket/struct-info
                      "../typecheck/internal-forms.rkt"
                      "annotate-classes.rkt"
@@ -142,12 +143,22 @@
            ;; info* when the type name != the struct name, we create a special
            ;; transfomer binding so the type name can be also used as the struct id
            (define/with-syntax maybe-type-name-def
-             (if (not (free-identifier=? #'nm.name #'type-name))
-                 (begin
-                   (with-syntax ([si (attribute nm.value)])
-                     (syntax/loc stx
-                       (define-syntax type-name (make-struct-info+type-wrapper #'nm.name si #'type-name)))))
-                 #'(begin)))
+             (cond
+               [(not (free-identifier=? #'nm.name #'type-name))
+                (match-define (list type-desc constr pred^ (list accs ...) muts super) (extract-struct-info (attribute nm.value)))
+                (quasisyntax/loc stx
+                  (define-syntax type-name
+                    (make-struct-info+type-wrapper #'nm.name
+                                                   (list
+                                                    (syntax #,type-desc)
+                                                    (syntax #,constr)
+                                                    (syntax #,pred^)
+                                                    (list #,@(map (lambda (i) #`(quote-syntax #,i)) accs))
+                                                    (list #,@(map (lambda (i) #'#f) accs))
+                                                    #,super)
+                                                   #'type-name)))]
+               [else
+                #'(begin)]))
            #`(begin #,(internal def)
                     maybe-type-name-def)])))
     (values (mk #'define-typed-struct-internal)
