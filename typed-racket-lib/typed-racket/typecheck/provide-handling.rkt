@@ -51,16 +51,15 @@
 
 
   ;; Build the final provide with auxilliary definitions
-  (start-making-quads
-   def-tbl
-   (for/lists (defs^ export-defs provides aliases)
-              ;; sort provs to generate deterministic output
-              ([(internal-id external-ids) (in-sorted-free-id-table provs)])
-     (define-values (defs^ export-def id alias) (make-quad internal-id pos-blame-id mk-redirect-id))
-     (define provide-forms
-       (for/list ([external-id (in-list external-ids)])
-         #`(rename-out [#,id #,external-id])))
-     (values #`(begin #,defs^)
-             export-def
-             #`(provide #,@provide-forms)
-             alias))))
+  (start-making-quads def-tbl pos-blame-id mk-redirect-id
+                      (for/lists (defs^ export-defs provides aliases)
+                                 ;; sort provs to generate deterministic output
+                                 ([(internal-id external-ids) (in-sorted-free-id-table provs)])
+                        (define-values (defs^ export-def id alias) (make-quad internal-id))
+                        (define provide-forms
+                          (for/list ([external-id (in-list external-ids)])
+                            #`(rename-out [#,id #,external-id])))
+                        (values #`(begin #,defs^)
+                                export-def
+                                #`(provide #,@provide-forms)
+                                alias))))

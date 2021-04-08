@@ -20,20 +20,22 @@
   ((make-syntax-introducer) id))
 
 (define-generics providable
-  [mk-quad providable new-id pos-blame-id mk-redirect-id])
+  [mk-quad providable new-id])
 
 (define (mk-ignored-quad i)
   (values #'(begin) #'(begin) i null))
 
 (define mapping (make-parameter #f))
 (define def-tbl (make-parameter #f))
+(define pos-blame-id (make-parameter #f))
+(define mk-redirect-id (make-parameter #f))
 
 (define-struct binding (name) #:transparent)
 
 (define-struct (def-binding binding) (ty)
   #:transparent
   #:methods gen:providable
-  [(define (mk-quad me new-id pos-blame-id mk-redirect-id)
+  [(define (mk-quad me new-id)
       (match-define (def-binding internal-id ty) me)
       (with-syntax* ([id internal-id]
                      [untyped-id (freshen-id #'id)]
@@ -44,12 +46,12 @@
         (define/with-syntax definitions
           (contract-def/provide-property
            #'(define-values (ctc) #f)
-           (list ty #'untyped-id #'id pos-blame-id)))
+           (list ty #'untyped-id #'id (pos-blame-id))))
         (values
          ;; For the submodule
          #`(begin definitions (provide untyped-id))
          ;; For the main module
-         #`(begin (define-syntax local-untyped-id (#,mk-redirect-id (quote-syntax untyped-id)))
+         #`(begin (define-syntax local-untyped-id (#,(mk-redirect-id) (quote-syntax untyped-id)))
                   (define-syntax export-id
                     (make-typed-renaming #'id #'local-untyped-id)))
          new-id
@@ -57,7 +59,7 @@
 
 (define-struct (def-stx-binding binding) () #:transparent
   #:methods gen:providable
-  [(define (mk-quad me new-id pos-blame-id mk-redirect-id)
+  [(define (mk-quad me new-id)
      (match-define (def-stx-binding internal-id) me)
      (with-syntax* ([id internal-id]
                     [export-id new-id]
@@ -78,7 +80,7 @@
   (sname static-info)
   #:transparent
   #:methods gen:providable
-  [(define (mk-quad me new-id pos-blame-id mk-redirect-id)
+  [(define (mk-quad me new-id)
      (match-define (def-struct-type-binding internal-id sname si) me)
      (with-syntax* ([id internal-id]
                    [export-id new-id]
@@ -102,9 +104,9 @@
   #:transparent
   #:methods gen:providable
   [(define/generic super-mk-quad mk-quad)
-   (define (mk-quad me new-id pos-blame-id mk-redirect-id)
+   (define (mk-quad me new-id)
      (define (mk internal-id)
-       (make-quad internal-id pos-blame-id mk-redirect-id))
+       (make-quad internal-id))
      
      (match-define (def-struct-stx-binding internal-id tname si constr-type extra-constr-name) me)
      (match-define (list type-desc constr pred (list accs ...) muts super) (extract-struct-info si))
@@ -124,9 +126,9 @@
          [(not (identifier? constr))
           (values #'(begin) #'(begin) #f null)]
          [(free-identifier=? constr internal-id)
-          (super-mk-quad (make-def-binding constr constr-type) (generate-temporary constr) pos-blame-id mk-redirect-id)]
+          (super-mk-quad (make-def-binding constr constr-type) (generate-temporary constr))]
          [else
-          (make-quad constr pos-blame-id mk-redirect-id)]))
+          (make-quad constr)]))
 
      (define/with-syntax (constr* type-desc* pred* super* accs* ...)
        (for/list ([i (in-list (cons constr-new-id new-ids))])
@@ -163,14 +165,16 @@
         (cons (list #'export-id internal-id)
               (apply append constr-aliases aliases)))))])
 
-(define-syntax-rule (start-making-quads defs^ . body)
+(define-syntax-rule (start-making-quads defs^ pbid mkrid . body)
   (parameterize ([def-tbl defs^]
+                 [pos-blame-id pbid]
+                 [mk-redirect-id mkrid]
                  [mapping (make-free-id-table)])
     . body))
 
 (provide start-making-quads make-quad)
 
-(define (make-quad internal-id pos-blame-id mk-redirect-id)
+(define (make-quad internal-id)
   (define new-id (freshen-id internal-id))
   (cond
     ;; if it's already done, do nothing
@@ -183,7 +187,7 @@
     [(free-id-table-ref (def-tbl) internal-id #f)
      =>
      (lambda (ins)
-       (mk-quad ins new-id pos-blame-id mk-redirect-id))]
+       (mk-quad ins new-id))]
     [else
      ;; otherwise, not defined in this module, not our problem
      (mk-ignored-quad internal-id)]))
