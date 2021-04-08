@@ -136,11 +136,15 @@
 
 (provide struct-info->syntax)
 (define (struct-info->syntax si)
-  (match-define (list type-desc constr pred (list accs ...) muts super) (extract-struct-info si))
+  (define (conv i)
+    (if (identifier? i) #`(quote-syntax #,i)
+        (quasisyntax #,i)))
+
+  (match-define (list type-desc constr pred (list accs ...) (list muts ...) super) (extract-struct-info si))
   #`(list
      (syntax #,type-desc)
      (syntax #,constr)
      (syntax #,pred)
-     (list #,@(map (lambda (i) #`(quote-syntax #,i)) accs))
-     (list #,@(map (lambda (i) (syntax #f)) accs))
+     (list #,@(map conv accs))
+     (list #,@(map conv muts))
      #,super))
