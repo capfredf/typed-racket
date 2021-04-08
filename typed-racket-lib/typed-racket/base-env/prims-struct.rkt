@@ -145,18 +145,10 @@
            (define/with-syntax maybe-type-name-def
              (cond
                [(not (free-identifier=? #'nm.name #'type-name))
-                (match-define (list type-desc constr pred^ (list accs ...) muts super) (extract-struct-info (attribute nm.value)))
+                (define/with-syntax si-stx (struct-info->syntax (attribute nm.value)))
                 (quasisyntax/loc stx
                   (define-syntax type-name
-                    (make-struct-info+type-wrapper #'nm.name
-                                                   (list
-                                                    (syntax #,type-desc)
-                                                    (syntax #,constr)
-                                                    (syntax #,pred^)
-                                                    (list #,@(map (lambda (i) #`(quote-syntax #,i)) accs))
-                                                    (list #,@(map (lambda (i) #'#f) accs))
-                                                    #,super)
-                                                   #'type-name)))]
+                    (make-struct-info+type-wrapper #'nm.name si-stx #'type-name)))]
                [else
                 #'(begin)]))
            #`(begin #,(internal def)

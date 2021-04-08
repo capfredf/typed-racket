@@ -8,6 +8,7 @@
          maybe-struct-info-wrapper-type)
 
 (require racket/struct-info
+         racket/match
          "utils.rkt"
          (prefix-in c: (contract-req))
          "disarm.rkt"
@@ -131,3 +132,15 @@
       [(and (not sname-is-constr?)) struct-info+type-wrapper]
       [else struct-info+type+self-ctor-wrapper]))
   (s-ctor id info type))
+
+
+(provide struct-info->syntax)
+(define (struct-info->syntax si)
+  (match-define (list type-desc constr pred (list accs ...) muts super) (extract-struct-info si))
+  #`(list
+     (syntax #,type-desc)
+     (syntax #,constr)
+     (syntax #,pred)
+     (list #,@(map (lambda (i) #`(quote-syntax #,i)) accs))
+     (list #,@(map (lambda (i) (syntax #f)) accs))
+     #,super))
