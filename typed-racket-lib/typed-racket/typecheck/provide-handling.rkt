@@ -4,12 +4,15 @@
          racket/sequence syntax/id-table racket/syntax
          racket/struct-info racket/match syntax/parse
          (only-in (private type-contract) include-extra-requires?)
-         (private syntax-properties)
+         (private parse-type syntax-properties)
          (typecheck renamer def-binding)
          (types struct-table)
          (utils tc-utils)
-         (only-in (utils struct-info-helper) make-struct-info-wrapper*)
-         (env env-utils)
+         (rep type-rep)
+         (only-in (utils struct-info-helper)
+                  make-struct-info-wrapper*
+                  make-struct-info+type-wrapper)
+         (env env-utils type-alias-env)
          (base-env type-name-error)
          (for-syntax racket/base)
          (for-template racket/base))
@@ -46,6 +49,8 @@
 ;;
 ;; The second value is a list of two element lists, which are type name aliases.
 (define (generate-prov defs provs pos-blame-id mk-redirect-id)
+  (for ([(k v) (in-free-id-table provs)])
+    (eprintf "def is ~a ~a ~n" k v))
   ;; maps ids defined in this module to an identifier which is the possibly-contracted version of the key
   (define mapping (make-free-id-table))
 
@@ -88,10 +93,40 @@
           (mk-value-quad internal-id new-id ty)]
          [(def-struct-stx-binding _ tname (? struct-info? si) constr-type extra-constr-name)
           (mk-struct-syntax-quad internal-id new-id tname si constr-type extra-constr-name)]
+         [(def-struct-type-binding _ sname (? struct-info? si))
+          (match-define (list type-desc constr pred (list accs ...) muts super) (extract-struct-info si))
+          (eprintf "~a ~n" muts)
+          (eprintf "info ~a ~n" (struct-info? (list type-desc constr pred
+                                                    accs
+                                                    (list #f) super)))
+          (with-syntax* ([id internal-id]
+                         [export-id new-id]
+                         [untyped-id (freshen-id #'id)])
+            
+            (values
+             #`(begin)
+             ;; There's no need to put this macro in the submodule since it
+             ;; has no dependencies.
+             #`(begin 
+                 (define-syntax untyped-id
+                   (make-struct-info+type-wrapper (syntax #,sname) (list
+                                                                    (syntax #,type-desc)
+                                                                    (syntax #,constr)
+                                                                    (syntax #,pred)
+                                                                    (list #,@(map (lambda (i) #`(quote-syntax #,i)) accs))
+                                                                    (list #,@(map (lambda (i) #'#f) accs))
+                                                                    #,super)
+                                                  #'id)
+                   #;
+                   (make-struct-info+type-wrapper sname si #'id))
+                 (define-syntax export-id
+                   (make-typed-renaming #'id #'untyped-id)))
+             #'export-id
+             (list (list #'export-id #'id))))]
          [(def-stx-binding _)
-          (mk-syntax-quad internal-id new-id)])]
-      ;; otherwise, not defined in this module, not our problem
-      [else (mk-ignored-quad internal-id)]))
+          (mk-syntax-quad internal-id new-id)]
+         ;; otherwise, not defined in this module, not our problem
+         [else (mk-ignored-quad internal-id)])]))
 
   ;; mk-struct-syntax-quad : identifier? identifier? struct-info? Type? (or/c identifier? #f) -> quad/c
   ;; This handles `(provide s)` where `s` was defined with `(struct s ...)`. 
@@ -117,18 +152,18 @@
        [else
         (mk constr)]))
 
+    ;; now we can use the structure's name to get the struct's *struct
+    ;; info* when the type name != the struct name, we create a special
+    ;; transfomer binding so the type name can be also used as the struct id
     #;
-    (define-values (type-defn type-defn-export)
+    (define-values (type-defn type-defn-export new-type-name type-name-aliases)
       (if type-is-sname?
-          (with-syntax ([type-name tname])
-            (values #'(define type-name type-name-error)
-                    #'(provide type-name)))
-          (values #'(begin) #'(begin))))
+          (values #'(begin) #'(begin) #f null)
+          (mk-syntax-quad tname (freshen-id tname))))
 
     ;; if sname == tname, but sname != constr-name
     ;; then sname and tname cannot be used a constructor, which means sname-is-constructor? is false.
     ;; But tname can still used in the place of sname
-
     (define/with-syntax (constr* type-desc* pred* super* accs* ...)
       (for/list ([i (in-list (cons constr-new-id new-ids))])
         (and (identifier? i) #`(quote-syntax #,i))))
@@ -140,11 +175,9 @@
       (values
         #`(begin
             #,constr-defn
-            ;;#,type-defn
             #,@defns)
         #`(begin
             #,constr-export-defn
-            ;;#,type-defn-export
             #,@export-defns
             ;; Here, we construct a new static struct identifier whose
             ;; contents point to newly-defined identifiers that are

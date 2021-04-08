@@ -395,7 +395,11 @@
   (for ([b (in-list def-bindings)])
     (register-type (binding-name b) (def-binding-ty b)))
 
-  (cons struct-binding def-bindings))
+  (cons struct-binding (append (if (free-identifier=? (struct-names-type-name names)
+                                                      (struct-names-struct-name names))
+                                   null
+                                   (list (make-def-struct-type-binding (struct-names-type-name names) (struct-names-struct-name names) si)))
+                               def-bindings)))
 
 
 

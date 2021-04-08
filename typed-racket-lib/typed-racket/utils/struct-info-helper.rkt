@@ -92,7 +92,8 @@
   (lambda (ins stx)
     (raise-syntax-error #f "identifier for static struct-type information cannot be used as an expression" stx))
   #:property prop:struct-info
-  (λ (x) (extract-struct-info (struct-info-wrapper-info x))))
+  (λ (x)
+    (extract-struct-info (struct-info-wrapper-info x))))
 
 ;; struct-info+type-wrapper is used in either of the follow cases:
 ;; 1. when a structure's name can also represent the structure type.
@@ -101,8 +102,10 @@
   #:property prop:procedure
   (lambda (ins stx)
     (type-name-error stx))
-  #:extra-constructor-name make-struct-info+type-wrapper)
+  #:extra-constructor-name make-struct-info+type-wrapper^)
 
+(define (make-struct-info+type-wrapper id si type)
+  (make-struct-info+type-wrapper^ id si type))
 ;; struct-info+type+self-ctor-wrapper is used when a structure's name works as
 ;; the constructor
 (struct struct-info+type+self-ctor-wrapper struct-info+type-wrapper ()
