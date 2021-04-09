@@ -8,11 +8,13 @@
          (for-syntax racket/base)
          (for-template racket/base)
          "../utils/utils.rkt"
-         (contract-req)
+         (prefix-in c: (contract-req))
          (utils tc-utils struct-info-helper)
          (types struct-table)
          (private syntax-properties)
          (typecheck renamer))
+
+(provide start-making-quads make-quad)
 
 (require-for-cond-contract racket/struct-info)
 
@@ -25,18 +27,21 @@
 (define (mk-ignored-quad i)
   (values #'(begin) #'(begin) i null))
 
+;; the parameters for a module being checked.
 (define mapping (make-parameter #f))
-(define def-tbl (make-parameter #f))
-(define pos-blame-id (make-parameter #f))
-(define mk-redirect-id (make-parameter #f))
+(define def-tbl (make-parameter #f)) ;; defines in this module
+(define pos-blame-id (make-parameter #f)) ;; #%variable-reference for the module
+(define mk-redirect-id (make-parameter #f)) ;; the name of a definition created by `make-make-redirect-to-contract`
 
 (define-struct binding (name) #:transparent)
 
 (define-struct (def-binding binding) (ty)
   #:transparent
   #:methods gen:providable
-  [(define (mk-quad me new-id)
-      (match-define (def-binding internal-id ty) me)
+  [(define/cond-contract (mk-quad me new-id)
+     (c:-> providable? identifier?
+           (values syntax? syntax? identifier? (c:listof (c:list/c identifier? identifier?))))
+     (match-define (def-binding internal-id ty) me)
       (with-syntax* ([id internal-id]
                      [untyped-id (freshen-id #'id)]
                      [local-untyped-id (freshen-id #'id)]
@@ -59,7 +64,9 @@
 
 (define-struct (def-stx-binding binding) () #:transparent
   #:methods gen:providable
-  [(define (mk-quad me new-id)
+  [(define/cond-contract (mk-quad me new-id)
+     (c:-> providable? identifier?
+           (values syntax? syntax? identifier? (c:listof (c:list/c identifier? identifier?))))
      (match-define (def-stx-binding internal-id) me)
      (with-syntax* ([id internal-id]
                     [export-id new-id]
@@ -68,7 +75,7 @@
         #`(begin)
         ;; There's no need to put this macro in the submodule since it
         ;; has no dependencies.
-        #`(begin 
+        #`(begin
             (define-syntax (untyped-id stx)
               (tc-error/stx stx "Macro ~a from typed module used in untyped code" 'untyped-id))
             (define-syntax export-id
@@ -80,7 +87,9 @@
   (sname static-info)
   #:transparent
   #:methods gen:providable
-  [(define (mk-quad me new-id)
+  [(define/cond-contract (mk-quad me new-id)
+     (c:-> providable? identifier?
+           (values syntax? syntax? identifier? (c:listof (c:list/c identifier? identifier?))))
      (match-define (def-struct-type-binding internal-id sname si) me)
      (with-syntax* ([id internal-id]
                    [export-id new-id]
@@ -91,7 +100,7 @@
        #`(begin)
        ;; There's no need to put this macro in the submodule since it
        ;; has no dependencies.
-       #`(begin 
+       #`(begin
            (define-syntax untyped-id
              (make-struct-info+type-wrapper (syntax #,sname) si-stx #'id))
            (define-syntax export-id
@@ -107,7 +116,7 @@
    (define (mk-quad me new-id)
      (define (mk internal-id)
        (make-quad internal-id))
-     
+
      (match-define (def-struct-stx-binding internal-id tname si constr-type extra-constr-name) me)
      (match-define (list type-desc constr pred (list accs ...) muts super) (extract-struct-info si))
      (define-values (defns export-defns new-ids aliases)
@@ -172,9 +181,20 @@
                  [mapping (make-free-id-table)])
     . body))
 
-(provide start-making-quads make-quad)
-
-(define (make-quad internal-id)
+;; `make-quad` and the generic interface `mk-quad` return value four values:
+;; First return value is a syntax object of definitions, which will go in
+;;    the #%contract-defs submodule
+;; Second is a syntax object of definitions to go in the main module, including
+;;    the defintion to be exported
+;; Third is the id to export
+;; Fourth is a list of two element lists representing type aliases
+;;
+;; When generating quads for a module, `make-quad` must be used inside a
+;; `start-making-quad` expression with proper initializations of parameters
+;; def-tbl, pos-blame-id, and mk-redirect-id
+(define/cond-contract (make-quad internal-id)
+  (c:-> identifier?
+        (values syntax? syntax? identifier? (c:listof (c:list/c identifier? identifier?))))
   (define new-id (freshen-id internal-id))
   (cond
     ;; if it's already done, do nothing
@@ -194,13 +214,13 @@
 
 (provide/cond-contract
  (struct binding ([name identifier?]))
- (struct (def-binding binding) ([name identifier?] [ty any/c]))
+ (struct (def-binding binding) ([name identifier?] [ty c:any/c]))
  (struct (def-stx-binding binding) ([name identifier?]))
  (struct (def-struct-type-binding binding) ([name identifier?] ;; struct's type name
                                             [sname identifier?] ;; struct name
-                                            [static-info (or/c #f struct-info?)]))
+                                            [static-info (c:or/c #f struct-info?)]))
  (struct (def-struct-stx-binding binding) ([name identifier?] ;; struct's name
                                            [tname identifier?] ;; struct's type name
-                                           [static-info (or/c #f struct-info?)]
-                                           [constructor-type any/c]
-                                           [extra-constr-name (or/c #f identifier?)])))
+                                           [static-info (c:or/c #f struct-info?)]
+                                           [constructor-type c:any/c]
+                                           [extra-constr-name (c:or/c #f identifier?)])))

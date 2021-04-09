@@ -39,15 +39,6 @@
 ;; The second value is a list of two element lists, which are type name aliases.
 (define (generate-prov def-tbl provs pos-blame-id mk-redirect-id)
   ;; maps ids defined in this module to an identifier which is the possibly-contracted version of the key
-  
-  ;; quad/c in the signatures corresponds to four values:
-  ;; (values syntax? syntax? identfier? (listof (list/c identifier? identifier?))
-  ;; First return value is a syntax object of definitions, which will go in
-  ;;    the #%contract-defs submodule
-  ;; Second is a syntax object of definitions to go in the main module, including 
-  ;;    the defintion to be exported
-  ;; Third is the id to export
-  ;; Fourth is a list of two element lists representing type aliases
 
 
   ;; Build the final provide with auxilliary definitions
