@@ -427,6 +427,8 @@
 (define (register-parsed-struct-bindings! ps)
   (match ps
     ((parsed-struct sty names desc si type-only)
+     (register-struct-bindings! sty names desc si)
+     #;
      (if type-only
          null
          (register-struct-bindings! sty names desc si)))))

@@ -1,0 +1,12 @@
+#lang racket/base
+
+(module u racket/base
+  (struct foo (a))
+  (provide (struct-out foo)))
+
+(module t typed/racket
+  (require/typed/provide (submod ".." u)
+    (#:struct foo ((a : Symbol)))))
+
+(require 't racket/match)
+(struct bar foo ())
