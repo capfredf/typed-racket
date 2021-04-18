@@ -35,7 +35,7 @@
 ;; desc : struct-desc
 ;; struct-info : struct-info?
 ;; type-only : Boolean
-(struct parsed-struct (sty names desc struct-info type-only) #:transparent)
+(struct parsed-struct (sty names desc struct-info) #:transparent)
 
 ;; struct-name : Id  (the identifier for the static struct info,
 ;;                    usually the same as the type-name)
@@ -425,15 +425,13 @@
 
 (define (register-parsed-struct-sty! ps)
   (match ps
-    ((parsed-struct sty names desc si type-only)
+    ((parsed-struct sty names desc si)
      (register-sty! sty names desc))))
 
 (define (register-parsed-struct-bindings! ps)
   (match ps
-    ((parsed-struct sty names desc si type-only)
-     (if type-only
-         null
-         (register-struct-bindings! sty names desc si)))))
+    ((parsed-struct sty names desc si)
+     (register-struct-bindings! sty names desc si))))
 
 ;; Listof<Parsed-Struct> -> Void
 ;; Refines the variance of struct types in the name environment
@@ -454,7 +452,6 @@
                    #:maker [maker #f]
                    #:extra-maker [extra-maker #f]
                    #:mutable [mutable #f]
-                   #:type-only [type-only #f]
                    #:prefab? [prefab? #f]
                    #:properties [properties empty])
   (define-values (nm parent-name parent) (parse-parent nm/par prefab?))
@@ -505,7 +502,7 @@
          (define desc
            (struct-desc parent-fields types tvars mutable parent-mutable #f))
          (parsed-struct (make-Prefab key (append parent-fields types))
-                        names desc (struct-info-property nm/par) #f)]
+                        names desc (struct-info-property nm/par))]
         [else
          (define maybe-proc-ty
            (let ([maybe-parsed-proc-ty (and proc-ty (parse-type proc-ty))])
@@ -533,7 +530,7 @@
 
          (define sty (mk/inner-struct-type names desc concrete-parent properties))
 
-         (parsed-struct sty names desc (struct-info-property nm/par) type-only)]))
+         (parsed-struct sty names desc (struct-info-property nm/par))]))
 
 ;; register a struct type
 ;; convenience function for built-in structs
