@@ -317,6 +317,7 @@
                                  (struct-names-struct-name names)
                                  (struct-names-type-name names)
                                  si
+                                 (binding-name constructor-binding)
                                  (def-binding-ty constructor-binding)
                                  extra-constructor)
     bindings)))
@@ -383,11 +384,13 @@
   (define struct-name (struct-names-struct-name names))
   (define type-name (struct-names-type-name names))
   (define extra-constructor (struct-names-extra-constructor names))
+  (define constructor-name (struct-names-constructor names))
   (define constructor-type (poly-wrapper (->* all-fields poly-base)))
   (define struct-binding (make-def-struct-stx-binding struct-name
                                                       struct-name
                                                       type-name
                                                       si
+                                                      constructor-name
                                                       constructor-type
                                                       extra-constructor))
   (define def-bindings
@@ -397,7 +400,7 @@
               bindings)
         bindings))
 
-  (register-type (struct-names-constructor names) constructor-type)
+  (register-type constructor-name constructor-type)
   (for ([b (in-list def-bindings)])
     (register-type (binding-name b) (def-binding-ty b)))
 
@@ -413,6 +416,7 @@
                     struct-name
                     type-name
                     si
+                    constructor-name
                     constructor-type
                     extra-constructor)))
          def-bindings)))

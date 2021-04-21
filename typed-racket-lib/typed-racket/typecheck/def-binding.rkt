@@ -85,7 +85,7 @@
 
 
 (define-struct (def-struct-stx-binding def-stx-binding)
-  (sname tname static-info constructor-type extra-constr-name)
+  (sname tname static-info constructor-name constructor-type extra-constr-name)
   #:transparent
   #:methods gen:providable
   [(define/generic super-mk-quad mk-quad)
@@ -96,7 +96,7 @@
      (define (mk internal-id)
        (make-quad internal-id def-tbl pos-blame-id mk-redirect-id))
 
-     (match-define (def-struct-stx-binding internal-id sname tname si constr-type extra-constr-name) me)
+     (match-define (def-struct-stx-binding internal-id sname tname si constr-name constr-type extra-constr-name) me)
      (match-define (list type-desc constr pred (list accs ...) muts super) (extract-struct-info si))
      (define-values (defns export-defns new-ids aliases)
        (for/lists (defns export-defns new-ids aliases)
@@ -105,18 +105,18 @@
              (mk e)
              (mk-ignored-quad e))))
 
-     (define sname-is-constructor? (and (or extra-constr-name (free-identifier=? sname constr)) #t))
-     (define type-is-sname? (free-identifier=? tname internal-id))
+     (define sname-is-constructor? (and (or extra-constr-name (free-identifier=? sname constr-name)) #t))
+
      ;; Here, we recursively handle all of the identifiers referenced
      ;; in this static struct info.
      (define-values (constr-defn constr-export-defn constr-new-id constr-aliases)
        (cond
-         [(not (identifier? constr))
+         [(not (identifier? constr-name))
           (values #'(begin) #'(begin) #f null)]
          ;; avoid generating the quad for constr twice.
          ;; skip it when the binding is for the type name
          [(and (free-identifier=? internal-id sname) (free-identifier=? constr internal-id))
-          (super-mk-quad (make-def-binding constr constr-type) (freshen-id constr) def-tbl pos-blame-id mk-redirect-id)]
+          (super-mk-quad (make-def-binding constr-name constr-type) (freshen-id constr-name) def-tbl pos-blame-id mk-redirect-id)]
          [else
           (make-quad constr def-tbl pos-blame-id mk-redirect-id)]))
 
@@ -205,5 +205,6 @@
                                            [sname identifier?]
                                            [tname identifier?]
                                            [static-info (or/c #f struct-info?)]
+                                           [constructor-name identifier?]
                                            [constructor-type any/c]
                                            [extra-constr-name (or/c #f identifier?)])))
