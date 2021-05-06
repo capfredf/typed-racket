@@ -7,7 +7,10 @@
 (module t typed/racket
   (require/typed/provide (submod ".." u)
     (#:struct foo ((a : Symbol))))
-  (foo 'a))
+  (define ins : foo (foo 'hello))
+  (if (foo? ins)
+      (foo-a ins)
+      (error 'test "not going to happen")))
 
 (require 't racket/match)
 (match (foo 'a)
