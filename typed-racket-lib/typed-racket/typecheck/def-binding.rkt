@@ -96,7 +96,7 @@
      (define (mk internal-id)
        (make-quad internal-id def-tbl pos-blame-id mk-redirect-id))
 
-     (match-define (def-struct-stx-binding internal-id sname tname si constr-name constr-type extra-constr-name) me)
+     (match-define (def-struct-stx-binding internal-id sname tname si constr-name^ constr-type extra-constr-name) me)
      (match-define (list type-desc _ pred (list accs ...) muts super) (extract-struct-info si))
      (define-values (defns export-defns new-ids aliases)
        (for/lists (defns export-defns new-ids aliases)
@@ -105,8 +105,9 @@
              (mk e)
              (mk-ignored-quad e))))
 
-     (define sname-is-constructor? (and (or extra-constr-name (free-identifier=? sname constr-name)) #t))
+     (define sname-is-constructor? (and (or extra-constr-name (free-identifier=? sname constr-name^)) #t))
 
+     (define constr-name (or extra-constr-name constr-name^))
      ;; Here, we recursively handle all of the identifiers referenced
      ;; in this static struct info.
      (define-values (constr-defn constr-export-defn constr-new-id constr-aliases)

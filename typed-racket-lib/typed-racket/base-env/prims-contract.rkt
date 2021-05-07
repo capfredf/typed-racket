@@ -443,7 +443,7 @@
                       [id-is-ctor? (or (attribute input-maker.extra)
                                        (bound-identifier=? #'maker-name #'nm))]
                       ;Only used if id-is-ctor? is true
-                      [internal-maker (generate-temporary #'maker-name)]
+                      [internal-maker #'maker-name]
                       ;The actual identifier bound to the constructor
                       [real-maker (if (syntax-e #'id-is-ctor?) #'internal-maker #'maker-name)]
                       [extra-maker (and (attribute input-maker.extra)
@@ -520,7 +520,10 @@
                                   (make-struct-info-wrapper* #'internal-maker si #'type)
                                   si))
 
-                         (dtsi* (tvar ...) spec type (body ...) #:maker maker-name)
+                         (dtsi* (tvar ...) spec type (body ...)
+                                #,@(if (syntax-e #'extra-maker)
+                                       #'(#:extra-maker internal-maker)
+                                       #'(#:maker maker-name)))
                          #,(ignore #'(require/contract pred hidden (or/c struct-predicate-procedure?/c (c-> any-wrap/c boolean?)) lib))
                          #,(internal #'(require/typed-internal hidden (Any -> Boolean : type)))
                          (require/typed #:internal (maker-name real-maker) type lib
@@ -529,6 +532,7 @@
 
                          ;This needs to be a different identifier to meet the specifications
                          ;of struct (the id constructor shouldn't expand to it)
+                         #;
                          #,(if (syntax-e #'extra-maker)
                                #`(require/typed #:internal (maker-name extra-maker) type lib
                                                 #:struct-maker parent

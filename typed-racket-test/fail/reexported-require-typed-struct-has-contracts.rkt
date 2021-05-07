@@ -1,17 +1,20 @@
 #;
-(exn-pred "3 contract violation")
+(exn-pred "5 contract violation")
 #lang racket/base
 
 (module u racket/base
   (struct apple (a))
   (struct pear (a) #:constructor-name make-pear)
+  (struct kiwi (a) #:extra-constructor-name make-kiwi)
   (provide (struct-out apple)
-           (struct-out pear)))
+           (struct-out pear)
+           (struct-out kiwi)))
 
 (module t typed/racket
   (require/typed/provide (submod ".." u)
     (#:struct apple ((a : Symbol)))
-    (#:struct pear ((a : Number)) #:constructor-name make-pear)))
+    (#:struct pear ((a : Number)) #:constructor-name make-pear)
+    (#:struct kiwi ((a : Number)) #:extra-constructor-name make-kiwi)))
 
 (define counter 0)
 (require 't)
@@ -25,5 +28,7 @@
 
 (verify-contract (apple 42)
                  (apple-a 20)
-                 (make-pear 'xxx))
+                 (make-pear 'xxx)
+                 (kiwi 'xxx)
+                 (make-kiwi 'xxx))
 
