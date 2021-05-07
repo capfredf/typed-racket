@@ -127,7 +127,6 @@
                     #:cache cache
                     ;; FIXME: get rid of this interface, make it functional
                     (λ (#:reason [reason #f]) (set! failure-reason reason))))
-  (eprintf "contract is orig ~a untyped ~a type ~a~n~n" orig-id untyped-id type)
   (syntax-parse stx
     #:literal-sets (kernel-literals)
     [(define-values (ctc-id) _)

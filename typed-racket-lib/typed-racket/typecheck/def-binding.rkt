@@ -31,9 +31,6 @@
 ;; maps ids defined in this module to an identifier which is the possibly-contracted version of the key
 (define mapping (make-parameter #f))
 
-
-(define generated-binding-mapping (make-parameter #f))
-
 (define-struct binding (name) #:transparent)
 
 (define-struct (def-binding binding) (ty)
@@ -121,19 +118,7 @@
          [(and (free-identifier=? internal-id sname) (free-identifier=? constr-name internal-id))
           (super-mk-quad (make-def-binding constr-name constr-type) (freshen-id constr-name) def-tbl pos-blame-id mk-redirect-id)]
          [else
-          (super-mk-quad (make-def-binding constr-name constr-type) (freshen-id constr-name) def-tbl pos-blame-id mk-redirect-id)
-          #;
-          (make-quad constr-name def-tbl pos-blame-id mk-redirect-id)
-          #;
-          (let-values ([(defn export-defns export-id alias)
-                        (make-quad constr-name def-tbl pos-blame-id mk-redirect-id)])
-            (let ([export-id (cond
-                               [(free-id-table-ref (generated-binding-mapping) constr-name #f)
-                                => (lambda (a)
-                                     (eprintf "Hi .... ~a ~n" a)
-                                     a)]
-                               [else export-id])])
-              (values defn export-defns export-id alias)))]))
+          (make-quad constr-name def-tbl pos-blame-id mk-redirect-id)]))
 
      (define/with-syntax (constr* type-desc* pred* super* accs* ...)
        (for/list ([i (in-list (cons constr-new-id new-ids))])
@@ -178,8 +163,7 @@
               (apply append constr-aliases aliases)))))])
 
 (define-syntax-rule (with-fresh-mapping . body)
-  (parameterize ([mapping (make-free-id-table)]
-                 [generated-binding-mapping (make-free-id-table)])
+  (parameterize ([mapping (make-free-id-table)])
     . body))
 
 ;; `make-quad` and the generic interface `mk-quad` return value four values:
@@ -197,26 +181,22 @@
   (-> identifier? (free-id-table/c identifier? binding? #:immutable #t) identifier? identifier?
       (values syntax? syntax? identifier? (listof (list/c identifier? identifier?))))
   (define new-id (freshen-id internal-id))
-  (define-values (defns export-defns export-id alias)
-    (cond
-      ;; if it's already done, do nothing
-      [(free-id-table-ref (mapping) internal-id
-                          ;; if it wasn't there, put it in, and skip this case
-                          (λ () (free-id-table-set! (mapping) internal-id new-id) #f))
-       => (lambda (n)
-            (mk-ignored-quad n))]
-      [(prefab-struct-field-operator? internal-id)
-       (mk-ignored-quad internal-id)]
-      [(free-id-table-ref def-tbl internal-id #f)
-       =>
-       (lambda (ins)
-         (mk-quad ins new-id def-tbl pos-blame-id mk-redirect-id))]
-      [else
-       ;; otherwise, not defined in this module, not our problem
-       (mk-ignored-quad internal-id)]))
-  (unless (free-id-table-ref (generated-binding-mapping) internal-id #f)
-    (free-id-table-set! (generated-binding-mapping) internal-id export-id))
-  (values defns export-defns export-id alias))
+  (cond
+    ;; if it's already done, do nothing
+    [(free-id-table-ref (mapping) internal-id
+                        ;; if it wasn't there, put it in, and skip this case
+                        (λ () (free-id-table-set! (mapping) internal-id new-id) #f))
+     => (lambda (n)
+          (mk-ignored-quad n))]
+    [(prefab-struct-field-operator? internal-id)
+     (mk-ignored-quad internal-id)]
+    [(free-id-table-ref def-tbl internal-id #f)
+     =>
+     (lambda (ins)
+       (mk-quad ins new-id def-tbl pos-blame-id mk-redirect-id))]
+    [else
+     ;; otherwise, not defined in this module, not our problem
+     (mk-ignored-quad internal-id)]))
 
 (provide/cond-contract
  (struct binding ([name identifier?]))

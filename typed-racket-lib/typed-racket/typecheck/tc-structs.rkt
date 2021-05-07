@@ -400,26 +400,28 @@
               bindings)
         bindings))
 
-  (register-type constructor-name constructor-type)
-  (for ([b (in-list def-bindings)])
+  (define constructor-binding (make-def-binding constructor-name constructor-type))
+  (for ([b (in-list (cons constructor-binding def-bindings))])
     (register-type (binding-name b) (def-binding-ty b)))
 
-  (cons struct-binding
-        (append
-         (if (free-identifier=? type-name
-                                struct-name)
-             null
-             ;; since type-name is also an syntax transformer that contains the
-             ;; struct info, we generate a struct stx binding for it here
-             (list (make-def-struct-stx-binding
-                    type-name
-                    struct-name
-                    type-name
-                    si
-                    constructor-name
-                    constructor-type
-                    extra-constructor)))
-         def-bindings)))
+  (append (if (free-identifier=? constructor-name struct-name)
+              null
+              (list constructor-binding))
+          (append (list struct-binding)
+                  (if (free-identifier=? type-name
+                                         struct-name)
+                      null
+                      ;; since type-name is also an syntax transformer that contains the
+                      ;; struct info, we generate a struct stx binding for it here
+                      (list (make-def-struct-stx-binding
+                             type-name
+                             struct-name
+                             type-name
+                             si
+                             constructor-name
+                             constructor-type
+                             extra-constructor)))
+                  def-bindings)))
 
 
 
