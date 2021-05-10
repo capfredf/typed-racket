@@ -166,6 +166,14 @@
                      [current-output-port (open-output-nowhere)])
         (dr p))))))
 
+(define (parallelize-ut tests)
+  (if (places)
+      (test-suite "unit-test"
+                  (let ([a (for/list ([t (in-list (reverse unit-test-suite-list))])
+                             (delay/thread (run-ut-in-other-place t #t)))])
+                    (for/list ([ut (in-list a)])
+                      (force ut))))
+      tests))
 
 (define (test/gui suite)
   (((dynamic-require 'rackunit/private/gui/gui 'make-gui-runner))
@@ -225,7 +233,7 @@
                           [else
                            (make-test-suite
                             "Typed Racket Tests"
-                            (append (if (unit?)       (list unit-tests)                  '())
+                            (append (if (unit?)       (list (parallelize-ut unit-tests))                  '())
                                     (if (int?)        (list (int-tests (excl)))          '())
                                     (if (opt?)        (list (optimization-tests))        '())
                                     (if (missed-opt?) (list (missed-optimization-tests)) '())

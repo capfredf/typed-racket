@@ -1,6 +1,7 @@
 #lang racket
 
 (require racket/place typed-racket/optimizer/logging
+         rackunit/text-ui
          syntax/modcode data/queue)
 (provide start-worker dr serialize-exn deserialize-exn s-exn? generate-log/place compile-path/place verbose?)
 
@@ -60,6 +61,12 @@
                           (λ (e) (place-channel-put res (serialize-exn e)))])
             (compile-path/place path)
             (place-channel-put res (void)))
+         (loop)]
+        [(vector 'ut p res)
+         (eprintf "tests is ~a ~n" p)
+         (define ts (dynamic-require (build-path "typed-racket-test/unit-tests" p) 'tests))
+         (run-tests ts)
+         (place-channel-put res #t)
          (loop)]
         [(vector p* res error?) 
          (define-values (path p b) (split-path p*))

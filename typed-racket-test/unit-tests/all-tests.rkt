@@ -4,11 +4,11 @@
  rackunit
  (for-syntax racket/base syntax/parse racket/syntax))
 
-(provide unit-tests)
+(provide unit-tests unit-test-suite-list)
 
 (define-syntax define-tests
   (syntax-parser
-    [(_ test-name:id files:expr ...)
+    [(_ test-name:id test-li-name:id files:expr ...)
      (define/with-syntax (new-names ...)
        (generate-temporaries #'(files ...)))
      #'(begin
@@ -16,9 +16,11 @@
          (define test-name
            (make-test-suite
              "Unit Tests"
-             (list new-names ...))))]))
+             (list new-names ...)))
+         (define test-li-name
+           (list files ...)))]))
 
-(define-tests unit-tests
+(define-tests unit-tests unit-test-suite-list
   "typecheck-tests.rkt"
   "subtype-tests.rkt"
   "type-equal-tests.rkt"

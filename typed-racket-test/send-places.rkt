@@ -3,7 +3,7 @@
 (require "places.rkt")
 
 (require racket/place data/queue racket/async-channel)
-(provide generate-log start-workers run-in-other-place places verbose? compile-path)
+(provide generate-log start-workers run-in-other-place places verbose? compile-path run-ut-in-other-place)
 
 (define places (make-parameter (and (place-enabled?) (min 8 (processor-count)))))
 
@@ -16,6 +16,14 @@
 (define (run-in-other-place p* error?)
   (define-values (res-ch res-ch*) (place-channel))
   (place-channel-put enq-ch (vector p* res-ch* error?))
+  (define res (place-channel-get res-ch))
+  (when (s-exn? res)
+    (raise (deserialize-exn res))))
+
+
+(define (run-ut-in-other-place ts error?)
+  (define-values (res-ch res-ch*) (place-channel))
+  (place-channel-put enq-ch (vector 'ut ts res-ch*))
   (define res (place-channel-get res-ch))
   (when (s-exn? res)
     (raise (deserialize-exn res))))
