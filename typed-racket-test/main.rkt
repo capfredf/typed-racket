@@ -168,11 +168,12 @@
 
 (define (parallelize-ut tests)
   (if (places)
-      (test-suite "unit-test"
-                  (let ([a (for/list ([t (in-list (reverse unit-test-suite-list))])
-                             (delay/thread (run-ut-in-other-place t #t)))])
-                    (for/list ([ut (in-list a)])
-                      (force ut))))
+      (begin (eprintf "Hi ~v ~n" (places))
+             (test-suite "unit-test"
+                         (let ([a (for/list ([t (in-list (reverse unit-test-suite-list))])
+                                    (delay/thread (run-ut-in-other-place t #t)))])
+                           (for/list ([ut (in-list a)])
+                             (force ut)))))
       tests))
 
 (define (test/gui suite)
