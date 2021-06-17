@@ -1068,21 +1068,28 @@
       ;; use expr to rule out keywords
       [(~or (:->^ dom (~var rng (existential-type-result #'dom)))
             (dom :->^ (~var rng (existential-type-result #'dom))))
-       ;; use parse-type instead of parse-values-type because we need to add the props from the pred-ty
-       (extend-tvars (map syntax-e (attribute rng.vars))
-                     (if (attribute rng.prop-type)
-                         (with-arity 1
-                           (make-Fun (list (make-Arrow (list (parse-type #'dom))
-                                                       #f
-                                                       null
-                                                       (make-Values (list (make-Result (parse-type (attribute rng.t))
-                                                                                       (-PS (abstract-obj (-is-type 0 (parse-type (attribute rng.prop-type)))
-                                                                                                          (attribute rng.vars))
-                                                                                            -tt)
-                                                                                       -empty-obj
-                                                                                       (attribute rng.vars))))))))
-                         (with-arity 1
-                           (make-Fun (list (-Arrow (list (parse-type #'dom)) (parse-type (attribute rng.t))))))))]
+       (define syms (map syntax-e (attribute rng.vars)))
+       (extend-tvars syms
+                     (cond
+                       [(attribute rng.prop-type)
+                        (define body-type (abstract-type (parse-type (attribute rng.t)) syms))
+                        ;; since `abstract-prop` doesn't exist, abstract-type
+                        ;; doesn't take a path rep, and abstract-obj simply
+                        ;; returns the input rep, we have to abstract the type
+                        ;; before packing it into the proposition.
+                        (define prop-type (abstract-type (parse-type (attribute rng.prop-type)) syms))
+                        (with-arity 1
+                          (make-Fun (list (make-Arrow (list (parse-type #'dom))
+                                                      #f
+                                                      null
+                                                      (make-Values (list (make-Result body-type
+                                                                                      (-PS (-is-type 0 prop-type)
+                                                                                           -tt)
+                                                                                      -empty-obj
+                                                                                      (length (attribute rng.vars)))))))))]
+                       [else
+                        (with-arity 1
+                          (make-Fun (list (-Arrow (list (parse-type #'dom)) (parse-type (attribute rng.t))))))]))]
       [(~or (:->^ dom:non-keyword-ty ... kws:keyword-tys ... rng)
             (dom:non-keyword-ty ... kws:keyword-tys ... :->^ rng))
        (define doms (syntax->list #'(dom ...)))

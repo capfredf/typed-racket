@@ -407,20 +407,28 @@
   (-> (listof (cons/c Type? Type?)) Result? Result?
       any/c)
   (match* (res1 res2)
-    [((Result: t1 (PropSet: p1+ p1-) o1 (list))
-      (Result: t2 (PropSet: p2+ p2-) o2 exis))
-     (define (maybe-sub rep)
-       (cond
-         [(not (null? exis))
-          (subst self-var (make-F (syntax-e (car exis))) rep)]
-         [else rep]))
-     (define (maybe-inst rep)
-       (instantiate-obj rep exis))
-     (and (or (equal? o1 o2) (Empty? o2) (not o2))
-          (subtype-seq A
-                       (subtype* (maybe-sub t1) (maybe-inst t2) o1)
-                       (prop-subtype* (maybe-sub p1+) (maybe-inst p2+))
-                       (prop-subtype* p1- p2-)))]))
+    [((Result: t1 (PropSet: p1+ p1-) o1 0)
+      (Result: t2 (PropSet: p2+ p2-) o2 n-exi))
+     (with-fresh-ids n-exi exi-ids
+       (define vars (map make-F (map syntax-e exi-ids)))
+       (define (maybe-sub rep)
+         (cond
+           [(> n-exi 0)
+            (subst self-var (car vars) rep)]
+           [else rep]))
+       (let ([p2+ (match p2+
+                    [(TypeProp: o ty)
+                     ;; since `instantiate-prop` doesn't exist, instantiate-type
+                     ;; doesn't take a path rep, and instantiate-obj doesn't
+                     ;; actually instantiate the type of a prop rep, we have to
+                     ;; instantiate the type specifically.
+                     (-is-type o (instantiate-type ty vars))]
+                    [_ p2+])])
+         (and (or (equal? o1 o2) (Empty? o2) (not o2))
+              (subtype-seq A
+                           (subtype* (maybe-sub t1) (instantiate-type t2 vars) o1)
+                           (prop-subtype* (maybe-sub p1+) p2+)
+                           (prop-subtype* p1- p2-)))))]))
 
 ;;************************************************************
 ;; Type Subtyping

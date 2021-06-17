@@ -207,11 +207,11 @@
 (def-rep Result ([t Type?]
                  [ps PropSet?]
                  [o OptObject?]
-                 ;; whether this result is existential
-                 [existentials (listof symbol?)])
+                 ;; the number of the existential quantifiers
+                 [n-existentials number?])
   #:no-provide
   [#:frees (f) (combine-frees (list (f t) (f ps) (f o)))]
-  [#:fmap (f) (make-Result (f t) (f ps) (f o) existentials)]
+  [#:fmap (f) (make-Result (f t) (f ps) (f o) n-existentials)]
   [#:for-each (f) (begin (f t) (f ps) (f o))]
   [#:extras
    #:property prop:custom-print-quotable 'never
@@ -219,8 +219,8 @@
    [(define (write-proc v port write?) (print-result v port write?))]])
 
 
-(define (make-Result* t ps o [existentials null])
-  (make-Result t ps o existentials))
+(define (make-Result* t ps o [n-existentials 0])
+  (make-Result t ps o n-existentials))
 
 (define-match-expander Result:*
   (lambda (stx)
@@ -230,9 +230,9 @@
                            (match-define (Result: type propset object _) result)
                            (list type propset object))
                          (list t ps o)))]
-      [(_ t ps o exis)
+      [(_ t ps o n)
        #'(? Result? (app (lambda (result)
-                           (match-define (Result: type propset object existentials) result)
-                           (list type propset object existentials))
-                         (list t ps o exis)))])))
+                           (match-define (Result: type propset object n-existentials) result)
+                           (list type propset object n-existentials))
+                         (list t ps o n)))])))
 
