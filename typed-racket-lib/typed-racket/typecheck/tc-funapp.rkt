@@ -90,7 +90,7 @@
        #:when (not (RestDots? (Arrow-rst arrow)))
        (let ([checked-ret (tc/funapp1 f-stx args-stx arrow args-res expected)])
          (match checked-ret
-           [(tc-results: (list (tc-result: t (PropSet: p+ _) o__)) _)
+           [(tc-results: (list (tc-result: t (PropSet: p+ _) _ #t)) _) #:when (not (equal? p+ -ff))
             (lexical-env (env+ (lexical-env) (list p+)))]
            [_ (void)])
          checked-ret)]

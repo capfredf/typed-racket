@@ -828,7 +828,6 @@
        (parse-quoted-type #'t)]
       [(:All^ . rest)
        (parse-all-type stx)]
-      #;
       [(:Some^ (x:id ...) . t:omit-parens)
        (define names (map syntax-e (syntax->list #'(x ...))))
        (extend-tvars names
