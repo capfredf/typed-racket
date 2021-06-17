@@ -88,15 +88,11 @@
       ;; tc/funapp1 currently cannot handle drest arities
       [(Fun: (list arrow))
        #:when (not (RestDots? (Arrow-rst arrow)))
-       (tc/funapp1 f-stx args-stx arrow args-res expected)]
-      [(Some: _ (Fun: (list arrow rst ...)))
-       (unless (null? rst)
-         (tc-error/fields "currently doesn't support case->" #:delayed? #f))
        (let ([checked-ret (tc/funapp1 f-stx args-stx arrow args-res expected)])
          (match checked-ret
-           [(tc-results: (list (tc-result: t (PropSet: p+ p-) o__)) _)
+           [(tc-results: (list (tc-result: t (PropSet: p+ _) o__)) _)
             (lexical-env (env+ (lexical-env) (list p+)))]
-           [_ #f])
+           [_ (void)])
          checked-ret)]
       [(DepFun: raw-dom raw-pre raw-rng)
        (parameterize ([with-refinements? #t])

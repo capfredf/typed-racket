@@ -407,12 +407,19 @@
   (-> (listof (cons/c Type? Type?)) Result? Result?
       any/c)
   (match* (res1 res2)
-    [((Result: t1 (PropSet: p1+ p1-) o1)
-      (Result: t2 (PropSet: p2+ p2-) o2))
+    [((Result: t1 (PropSet: p1+ p1-) o1 (list))
+      (Result: t2 (PropSet: p2+ p2-) o2 exis))
+     (define (maybe-sub rep)
+       (cond
+         [(not (null? exis))
+          (subst self-var (make-F (syntax-e (car exis))) rep)]
+         [else rep]))
+     (define (maybe-inst rep)
+       (instantiate-obj rep exis))
      (and (or (equal? o1 o2) (Empty? o2) (not o2))
           (subtype-seq A
-                       (subtype* t1 t2 o1)
-                       (prop-subtype* p1+ p2+)
+                       (subtype* (maybe-sub t1) (maybe-inst t2) o1)
+                       (prop-subtype* (maybe-sub p1+) (maybe-inst p2+))
                        (prop-subtype* p1- p2-)))]))
 
 ;;************************************************************

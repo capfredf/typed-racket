@@ -587,6 +587,14 @@
   (pattern i:Self^
            #:attr type -Self))
 
+(define-syntax-class (existential-type-result doms)
+  #:attributes (vars t prop-type)
+  (pattern (Some^ (x:id ...) t)
+           #:attr prop-type #f
+           #:attr vars (syntax->list #'(x ...)))
+  (pattern (Some^ (x:id ...) t :colon^ prop-type:expr)
+           #:attr vars (syntax->list #'(x ...))))
+
 (define-splicing-syntax-class sp-arg
   #:attributes (type pred?)
   (pattern i:expr
@@ -820,11 +828,12 @@
        (parse-quoted-type #'t)]
       [(:All^ . rest)
        (parse-all-type stx)]
+      #;
       [(:Some^ (x:id ...) . t:omit-parens)
        (define names (map syntax-e (syntax->list #'(x ...))))
        (extend-tvars names
                      (make-Some names
-                                 (parse-type #'t.type)))]
+                                (parse-type #'t.type)))]
       [(:Opaque^ p?:id)
        (make-Opaque #'p?)]
       [(:Distinction^ name:id unique-id:id rep-ty:expr)
@@ -1057,6 +1066,23 @@
       (->* (parse-types #'(dom ...))
       (parse-values-type #'rng))]     |#
       ;; use expr to rule out keywords
+      [(~or (:->^ dom (~var rng (existential-type-result #'dom)))
+            (dom :->^ (~var rng (existential-type-result #'dom))))
+       ;; use parse-type instead of parse-values-type because we need to add the props from the pred-ty
+       (extend-tvars (map syntax-e (attribute rng.vars))
+                     (if (attribute rng.prop-type)
+                         (with-arity 1
+                           (make-Fun (list (make-Arrow (list (parse-type #'dom))
+                                                       #f
+                                                       null
+                                                       (make-Values (list (make-Result (parse-type (attribute rng.t))
+                                                                                       (-PS (abstract-obj (-is-type 0 (parse-type (attribute rng.prop-type)))
+                                                                                                          (attribute rng.vars))
+                                                                                            -tt)
+                                                                                       -empty-obj
+                                                                                       (attribute rng.vars))))))))
+                         (with-arity 1
+                           (make-Fun (list (-Arrow (list (parse-type #'dom)) (parse-type (attribute rng.t))))))))]
       [(~or (:->^ dom:non-keyword-ty ... kws:keyword-tys ... rng)
             (dom:non-keyword-ty ... kws:keyword-tys ... :->^ rng))
        (define doms (syntax->list #'(dom ...)))
