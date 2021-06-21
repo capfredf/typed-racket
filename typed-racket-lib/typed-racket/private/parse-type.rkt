@@ -589,10 +589,10 @@
 
 (define-syntax-class (existential-type-result doms)
   #:attributes (vars t prop-type)
-  (pattern (Some^ (x:id ...) t)
+  (pattern (:Some^ (x:id ...) t)
            #:attr prop-type #f
            #:attr vars (syntax->list #'(x ...)))
-  (pattern (Some^ (x:id ...) t :colon^ prop-type:expr)
+  (pattern (:Some^ (x:id ...) t :colon^ prop-type:expr)
            #:attr vars (syntax->list #'(x ...))))
 
 (define-splicing-syntax-class sp-arg
