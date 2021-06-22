@@ -23,9 +23,12 @@
 (provide/cond-contract
   [tc/funapp1
     ((syntax? stx-list? Arrow? (listof tc-results/c) (or/c #f tc-results/c))
-     (#:check boolean?)
+     (#:check boolean?
+      #:existential? boolean?)
      . ->* . full-tc-results/c)])
-(define (tc/funapp1 f-stx args-stx ftype0 arg-ress expected #:check [check? #t])
+(define (tc/funapp1 f-stx args-stx ftype0 arg-ress expected
+                    #:check [check? #t]
+                    #:existential? [existential? #f])
   ;; update tooltip-table with inferred function type
   (add-typeof-expr f-stx (ret (make-Fun (list ftype0))))
   (match* (ftype0 arg-ress)
@@ -86,7 +89,11 @@
                               [oa (in-list/rest o-a -empty-obj)]
                               [ta (in-list/rest t-a Univ)])
                              (values oa ta)))])
-         (values->tc-results rng o-a t-a)))]
+         (let ([res (values->tc-results rng o-a t-a)])
+           (match res
+               [(tc-results: (list (tc-result: t (PropSet: p+ _) _ #t)) _) #:when (not (equal? p+ -ff))
+                                                                           (lexical-env (env+ (lexical-env) (list p+)))]
+               [res res]))))]
     ;; this case should only match if the function type has mandatory keywords
     ;; but no keywords were provided in the application
     [((Arrow: _ _ kws _) _)
