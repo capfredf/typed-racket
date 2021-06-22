@@ -79,6 +79,10 @@
 ;; is inside Struct-Property.
 (define current-in-struct-prop (make-parameter #f))
 
+;; This parameter is set to #t when we are paring potential existential type
+;; result for the range of a function type.
+(define parsing-existential-rng? (make-parameter #f))
+
 (define-syntax-rule (with-local-term-names bindings e ...)
   (parameterize ([current-local-term-ids
                   (append bindings (current-local-term-ids))])
@@ -587,7 +591,7 @@
   (pattern i:Self^
            #:attr type -Self))
 
-(define-syntax-class (existential-type-result doms)
+(define-syntax-class existential-type-result
   #:attributes (vars t prop-type)
   (pattern (:Some^ (x:id ...) t)
            #:attr prop-type #f
@@ -1065,8 +1069,9 @@
       (->* (parse-types #'(dom ...))
       (parse-values-type #'rng))]     |#
       ;; use expr to rule out keywords
-      [(~or (:->^ dom (~var rng (existential-type-result #'dom)))
-            (dom :->^ (~var rng (existential-type-result #'dom))))
+      [rng:existential-type-result #:fail-unless
+                                   parsing-existential-rng?
+                                   "extential type results are only allowed in the range of a function type"
        (define syms (map syntax-e (attribute rng.vars)))
        (extend-tvars syms
                      (cond
@@ -1077,18 +1082,13 @@
                         ;; returns the input rep, we have to abstract the type
                         ;; before packing it into the proposition.
                         (define prop-type (abstract-type (parse-type (attribute rng.prop-type)) syms))
-                        (with-arity 1
-                          (make-Fun (list (make-Arrow (list (parse-type #'dom))
-                                                      #f
-                                                      null
-                                                      (make-Values (list (make-Result body-type
-                                                                                      (-PS (-is-type 0 prop-type)
-                                                                                           -tt)
-                                                                                      -empty-obj
-                                                                                      (length (attribute rng.vars)))))))))]
+                        (make-Result body-type
+                                     (-PS (-is-type 0 prop-type)
+                                          -tt)
+                                     -empty-obj
+                                     (length (attribute rng.vars)))]
                        [else
-                        (with-arity 1
-                          (make-Fun (list (-Arrow (list (parse-type #'dom)) (parse-type (attribute rng.t))))))]))]
+                        (parse-type (attribute rng.t))]))]
       [(~or (:->^ dom:non-keyword-ty ... kws:keyword-tys ... rng)
             (dom:non-keyword-ty ... kws:keyword-tys ... :->^ rng))
        (define doms (syntax->list #'(dom ...)))
@@ -1097,7 +1097,8 @@
                        (parse-type d))])
            (make-Fun
             (list (-Arrow doms
-                          (parse-values-type #'rng)
+                          (parameterize ([parsing-existential-rng? #t])
+                            (parse-values-type #'rng))
                           #:kws (map force (attribute kws.Keyword)))))))]
       ;; This case needs to be at the end because it uses cut points to give good error messages.
       [(~or (:->^ ~! dom:non-keyword-ty ... rng:expr
