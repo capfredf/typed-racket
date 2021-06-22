@@ -91,12 +91,7 @@
       [(Some: _ (Fun: (list arrow rst ...)))
        (unless (null? rst)
          (tc-error/fields "currently doesn't support case->" #:delayed? #f))
-       (let ([checked-ret (tc/funapp1 f-stx args-stx arrow args-res expected)])
-         (match checked-ret
-           [(tc-results: (list (tc-result: t (PropSet: p+ p-) o__)) _)
-            (lexical-env (env+ (lexical-env) (list p+)))]
-           [_ #f])
-         checked-ret)]
+       (tc/funapp1 f-stx args-stx arrow args-res expected #:existential? #t)]
       [(DepFun: raw-dom raw-pre raw-rng)
        (parameterize ([with-refinements? #t])
          (define subst (for/list ([o (in-list argobjs)]
