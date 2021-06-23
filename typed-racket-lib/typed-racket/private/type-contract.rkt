@@ -576,7 +576,7 @@
         (define (err)
           (fail #:reason
                 "contract generation only supports Some Type in this form: (Some (X) (-> ty1 ... (-> X ty ... ty2) : X))"))
-        
+
         (define (get-dom-rng li-arrs)
           (match li-arrs
             [(list (Arrow: (list dom) rst kw
@@ -586,7 +586,7 @@
                          (eq? n1 n))
              (values dom rng)]
             [_ (err)]))
-        
+
         (define-values (dom rng) (get-dom-rng li-arrs))
         (define/with-syntax name n)
         (define lhs (t->sc/neg dom))
@@ -598,7 +598,7 @@
         (cond
           [(string-prefix? (symbol->string v) "self-")
            (if (not (from-untyped? typed-side))
-               ;; if self is in negative position, we can't generate a contract yet. 
+               ;; if self is in negative position, we can't generate a contract yet.
                (fail #:reason "contract generation not supported for Self")
                any/sc)]
           [else (triple-lookup
@@ -770,14 +770,14 @@
         (define-values (a prop-name) (syntax-local-value/immediate orig-id (λ () (values #t orig-id))))
         (match-define (Struct-Property: _ pred?) (lookup-id-type/lexical prop-name))
         ;; if original-name is only set when the type is added via require/typed
-        
+
         ;; the original-name of `prop-name` is its original referece in the unexpanded program.
         (define real-prop-var (or (syntax-property prop-name 'original-name) prop-name))
 
         ;; a property is wrapped so we need its original reference
         (define real-pred-var (or (syntax-property pred? 'original-name) (syntax-e pred?)))
-        
-        ;; the `pred?` could be provided to a property through require/typed, 
+
+        ;; the `pred?` could be provided to a property through require/typed,
         ;; so we need to check if it is produced by the property
         (flat/sc #`(flat-named-contract '#,real-pred-var
                                         (lambda (x)
@@ -901,59 +901,68 @@
          (define rest (and rst (t->sc/neg rst)))
          (function/sc (from-typed? typed-side) (process-dom mand-args) opt-args mand-kws opt-kws rest range))
        (handle-arrow-range first-arrow convert-arrow)]
-      [else
-       (define ((f case->) a)
-         (define (convert-arr arr)
-           (match arr
-             [(Arrow: dom rst kws (Values: (list (Result: rngs _ _ n-exis) ...)))
-              (let-values ([(mand-kws opt-kws) (partition-kws kws)])
-                ;; Garr, I hate case->!
-                (when (and (not (empty? kws)) case->)
-                  (fail #:reason (~a "cannot generate contract for case function type"
-                                     " with optional keyword arguments")))
-                (cond
-                  [case->
-                   (when (ormap (lambda (n-exi)
-                                  (> n-exi 0))
-                                n-exis) 
-                     (fail #:reason (~a "cannot generate contract for case function type with existentials")))
-                   (arr/sc (process-dom (map t->sc/neg dom))
-                           (and rst (t->sc/neg rst))
-                           (map t->sc rngs))]
-                  [(> (car n-exis) 0)
-                   (define n (gensym))
-                   (define/with-syntax name n)
-                   (define lhs (t->sc/neg (car dom)))
-                   (define eq-name (flat/sc #'(eq/c name)))
-                   (define rhs (t->sc (instantiate-type (car rngs) (make-F n))
-                                      #:recursive-values (hash-set recursive-values n
-                                                                   (same eq-name))))
-                   (exist/sc (list #'name) lhs rhs)]
-                  [else
-                   (function/sc
-                    (from-typed? typed-side)
-                    (process-dom (map t->sc/neg dom))
-                    null
-                    (map conv mand-kws)
-                    (map conv opt-kws)
-                    (match rst
-                      [(? Rest?) (t->sc/neg rst)]
-                      [(RestDots: dty dbound)
-                       (listof/sc
-                        (t->sc/neg dty
-                                   #:recursive-values
-                                   (hash-set recursive-values dbound (same any/sc))))]
-                      [_ #f])
-                    (map t->sc rngs))]))]))
-         (handle-arrow-range a (λ () (convert-arr a))))
+       [else
+        (define/match (convert-single-arrow arr)
+          [((Arrow: dom rst kws (Values: (list (Result: rngs _ _ n-exis) ...))))
+           (let-values ([(mand-kws opt-kws) (partition-kws kws)])
+             (cond
+               [(and (pair? n-exis) (> (car n-exis) 0))
+                (define n (gensym))
+                (define/with-syntax name n)
+                (define lhs (t->sc/neg (car dom)))
+                (define eq-name (flat/sc #'(eq/c name)))
+                (define rhs (t->sc (instantiate-type (car rngs) (make-F n))
+                                   #:recursive-values (hash-set recursive-values n
+                                                                (same eq-name))))
+                (exist/sc (list #'name) lhs rhs)]
+               [else
+                (function/sc
+                 (from-typed? typed-side)
+                 (process-dom (map t->sc/neg dom))
+                 null
+                 (map conv mand-kws)
+                 (map conv opt-kws)
+                 (match rst
+                   [(? Rest?) (t->sc/neg rst)]
+                   [(RestDots: dty dbound)
+                    (listof/sc
+                     (t->sc/neg dty
+                                #:recursive-values
+                                (hash-set recursive-values dbound (same any/sc))))]
+                   [_ #f])
+                 (map t->sc rngs))]))])
+
+        (define/match (convert-one-arrow-in-many arr)
+          [((Arrow: dom rst kws (Values: (list (Result: rngs _ _ n-exis) ...))))
+           (let-values ([(mand-kws opt-kws) (partition-kws kws)])
+             ;; Garr, I hate case->!
+             (when (and (not (empty? kws)))
+               (fail #:reason (~a "cannot generate contract for case function type"
+                                  " with optional keyword arguments")))
+             (when (ormap (lambda (n-exi)
+                            (> n-exi 0))
+                          n-exis)
+               (fail #:reason (~a "cannot generate contract for case function type with existentials")))
+
+             (arr/sc (process-dom (map t->sc/neg dom))
+                     (and rst (t->sc/neg rst))
+                     (map t->sc rngs)))])
+
        (define arities
          (for/list ([t (in-list arrows)]) (length (Arrow-dom t))))
+
        (define maybe-dup (check-duplicates arities))
        (when maybe-dup
          (fail #:reason (~a "function type has two cases of arity " maybe-dup)))
+
        (if (= (length arrows) 1)
-           ((f #f) (first arrows))
-           (case->/sc (map (f #t) arrows)))])]
+           (handle-arrow-range (first arrows)
+                               (lambda ()
+                                 (convert-single-arrow (first arrows))))
+           (case->/sc (map (lambda (arr)
+                             (handle-arrow-range arr (lambda ()
+                                                       (convert-one-arrow-in-many arr))))
+                           arrows)))])]
     [(DepFun/ids: ids dom pre rng)
      (define (continue)
        (match rng
