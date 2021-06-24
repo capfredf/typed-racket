@@ -351,7 +351,7 @@
         (loop t (flip-side typed-side) recursive-values))
       (define (t->sc/both t #:recursive-values (recursive-values recursive-values))
         (loop t 'both recursive-values))
-      (define (t->sc/fun t) (t->sc/function t fail typed-side recursive-values loop #f))
+      (define (t->sc/fun t #:maybe-existential [opt-exi #f]) (t->sc/function t fail typed-side recursive-values loop #f #:maybe-existential opt-exi))
       (define (t->sc/meth t) (t->sc/method t fail typed-side recursive-values loop))
 
       (define (struct->recursive-sc name-base key flds sc-ctor)
@@ -568,32 +568,8 @@
        ;; TODO: this is not quite right for case->
        [(Prompt-Tagof: s (Fun: (list (Arrow: ts _ _ _))))
         (prompt-tag/sc (map t->sc ts) (list (t->sc s)))]
-       [(Some: (list n) (Fun: (list li-arrs ...)))
-        (define (occur? t)
-          (if (or (not t) (empty? t)) #f
-              (set-member? (free-vars-names (free-vars* t)) n)))
-
-        (define (err)
-          (fail #:reason
-                "contract generation only supports Some Type in this form: (Some (X) (-> ty1 ... (-> X ty ... ty2) : X))"))
-
-        (define (get-dom-rng li-arrs)
-          (match li-arrs
-            [(list (Arrow: (list dom) rst kw
-                           (Values: (list (Result: (and (Fun: (list (Arrow: (list-rest (F: n1) a ... _) rst_i kw_i r))) rng)
-                                                   (PropSet: (TypeProp: _ (F: n1)) _) _)))))
-             #:when (and (not (ormap occur? (list rst kw rst_i kw_i)))
-                         (eq? n1 n))
-             (values dom rng)]
-            [_ (err)]))
-
-        (define-values (dom rng) (get-dom-rng li-arrs))
-        (define/with-syntax name n)
-        (define lhs (t->sc/neg dom))
-        (define eq-name (flat/sc #'(eq/c name)))
-        (define rhs (t->sc rng #:recursive-values (hash-set recursive-values n
-                                                            (same eq-name))))
-        (exist/sc (list #'name) lhs rhs)]
+       [(Some: (list n) (? Fun? t-body))
+        (t->sc/fun t-body #:maybe-existential n)]
        [(F: v)
         (cond
           [(string-prefix? (symbol->string v) "self-")
@@ -826,11 +802,33 @@
         (fail #:reason "contract generation not supported for this type")]))))
 
 
-(define (t->sc/function f fail typed-side recursive-values loop method?)
+(define (t->sc/function f fail typed-side recursive-values loop method? #:maybe-existential [opt-exi #f])
   (define (t->sc t #:recursive-values (recursive-values recursive-values))
     (loop t typed-side recursive-values))
   (define (t->sc/neg t #:recursive-values (recursive-values recursive-values))
     (loop t (flip-side typed-side) recursive-values))
+
+  (define (arr-params->exist/sc exi dom rst kw rng prop+type)
+    (define (occur? t)
+      (if (or (not t) (empty? t)) #f
+          (set-member? (free-vars-names (free-vars* t)) exi)))
+
+    (match* (rng prop+type)
+      [((Fun: (list (Arrow: (list-rest (F: n1) a ... _) rst_i kw_i r))) (F: n1))
+       #:when (and (not (ormap occur? (list rst kw rst_i kw_i)))
+                   (eq? n1 exi))
+       (void)]
+      [(_ _) (fail #:reason
+                   "contract generation only supports Some Type in this form: (Some (X) (-> ty1 ... (-> X ty ... ty2) : X)) or (-> ty1 ... (Some (X) (-> X ty ... ty2) : X)))")])
+
+    (define/with-syntax name exi)
+    (define lhs (t->sc/neg dom))
+    (define eq-name (flat/sc #'(eq/c name)))
+    (define rhs (t->sc rng
+                       #:recursive-values (hash-set recursive-values exi
+                                                    (same eq-name))))
+    (exist/sc (list #'name) lhs rhs))
+
 
   ;; handle-arrow-range : Arr (-> Static-Contact) -> Static-Contract
   ;; Match the range of an arr and determine if a contract can be generated
@@ -903,20 +901,22 @@
        (handle-arrow-range first-arrow convert-arrow)]
        [else
         (define/match (convert-single-arrow arr)
-          [((Arrow: dom rst kws (Values: (list (Result: rngs _ _ n-exis) ...))))
+          [((Arrow: (list dom) rst kws (Values: (list (Result: rng (PropSet: (TypeProp: _ prop+type) _) _ 0)))))
+           #:when opt-exi
            (let-values ([(mand-kws opt-kws) (partition-kws kws)])
-             (cond
-               [(and (pair? n-exis) (> (car n-exis) 0))
-                (define n (gensym))
-                (define/with-syntax name n)
-                (define lhs (t->sc/neg (car dom)))
-                (define eq-name (flat/sc #'(eq/c name)))
-                (define rhs (t->sc (instantiate-type (car rngs) (make-F n))
-                                   #:recursive-values (hash-set recursive-values n
-                                                                (same eq-name))))
-                (exist/sc (list #'name) lhs rhs)]
-               [else
-                (function/sc
+             (arr-params->exist/sc opt-exi dom rst kws rng prop+type))]
+
+          [((Arrow: (list dom) rst kws (Values: (list (Result: rng (PropSet: (TypeProp: _ prop+type) _) _ n-exi)))))
+           #:when (> n-exi 0)
+           (let*-values ([(mand-kws opt-kws) (partition-kws kws)]
+                         [(n) (gensym)]
+                         [(var) (make-F n)])
+             (arr-params->exist/sc n dom rst kws (instantiate-type rng var)
+                                   (instantiate-type prop+type var)))]
+
+          [((Arrow: dom rst kws (Values: (list (Result: rngs _ _ n-exiss) ...))))
+           (define-values (mand-kws opt-kws) (partition-kws kws))
+           (function/sc
                  (from-typed? typed-side)
                  (process-dom (map t->sc/neg dom))
                  null
@@ -930,7 +930,7 @@
                                 #:recursive-values
                                 (hash-set recursive-values dbound (same any/sc))))]
                    [_ #f])
-                 (map t->sc rngs))]))])
+                 (map t->sc rngs))])
 
         (define/match (convert-one-arrow-in-many arr)
           [((Arrow: dom rst kws (Values: (list (Result: rngs _ _ n-exis) ...))))
