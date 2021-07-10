@@ -77,10 +77,6 @@
          set-struct-property-pred!
          DepFun/ids:
          Some-names:
-         Struct-Property?
-         Struct-name
-         Struct?
-         Struct-flds
          Struct-subflds
          Struct-update-proc!
          (rename-out [Union:* Union:]
@@ -753,7 +749,7 @@
    ;; when a struct type property is annotated via require/typed, the pred-id is
    ;; immediately set.
    [pred-id (box/c (or/c identifier? false/c))])
-  #:no-provide
+  #:no-provide (make-Struct-Property Struct-Property:)
   [#:frees (f) (f elem)]
   [#:fmap (f) (make-Struct-Property (f elem) pred-id)]
   [#:for-each (f) (f elem)]
@@ -803,7 +799,7 @@
                   [poly? boolean?]
                   [pred-id identifier?]
                   [properties (free-id-set/c identifier?)])
-  #:no-provide
+  #:no-provide (Struct: Struct-proc make-Struct)
   [#:frees (f) (combine-frees (map f (append (let ([bv (unbox proc)])
                                                (if bv (list bv) null))
                                              (if parent (list parent) null)
