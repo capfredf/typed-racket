@@ -140,11 +140,11 @@
     [(Promise: ty)
      `(make-Promise ,(type->sexp ty))]
     [(Ephemeron: ty)
-     `(make-Ephemeron ,(type->sexp ty))]
+     `(-Ephemeron ,(type->sexp ty))]
     [(Weak-Box: ty)
      `(make-Weak-Box ,(type->sexp ty))]
     [(CustodianBox: ty)
-     `(make-CustodianBox ,(type->sexp ty))]
+     `(-CustodianBox ,(type->sexp ty))]
     [(Set: ty)
      `(make-Set ,(type->sexp ty))]
     [(Evt: ty)
@@ -152,9 +152,9 @@
     [(Future: ty)
      `(make-Future ,(type->sexp ty))]
     [(Prompt-Tagof: prompt handler)
-     `(make-Prompt-Tagof ,(type->sexp prompt) ,(type->sexp handler))]
+     `(-Prompt-Tagof ,(type->sexp prompt) ,(type->sexp handler))]
     [(Continuation-Mark-Keyof: ty)
-     `(make-Continuation-Mark-Keyof ,(type->sexp ty))]
+     `(-Continuation-Mark-Keyof ,(type->sexp ty))]
     [(Sequence: tys)
      `(-seq ,@(map type->sexp tys))]
     [(SequenceDots: tys dty dbound)
@@ -359,7 +359,18 @@
     [(Value: v) `(make-Value (quote ,v))]
     ;; Most Top types are in the predefined table, the ones here
     ;; are not
-    [(StructTop: name) `(make-StructTop ,(type->sexp name))]))
+    [(StructTop: name) `(make-StructTop ,(type->sexp name))]
+    [(TypeConstructor constr arity kind*? productive?)
+     (define constr^ (match constr
+                       [(? procedure?)
+                        (object-name constr)]
+                       [(user-defined-type-op vars type)
+                        `(user-defined-type-op (list ,@(for/list ([i (in-list vars)])
+                                                         `(quote ,i)))
+                                               ,(type->sexp type))]
+                       [(struct-type-op sty)
+                        `(struct-type-op ,(type->sexp sty))]))
+     `(make-type-op ,constr^ ,arity ,productive? #:kind*? ,kind*?)]))
 
 ;; Helper for class/row clauses
 (define (convert-row-clause members [inits? #f])
@@ -477,6 +488,23 @@
     (λ (f) (free-id-table-map mvar-env f))
     (lambda (id v) (and v #`(register-mutated-var #'#,id)))))
 
+(define (type-constructor-env-init)
+  (make-init-code
+   kind-env-map
+   (lambda (id v)
+     (match-define (TypeConstructor constr arity kind*? productive?) v)
+     (define constr^ (match constr
+                       [(? procedure?)
+                        (object-name constr)]
+                       [(user-defined-type-op vars type)
+                        `(user-defined-type-op (list ,@(for/list ([i (in-list vars)])
+                                                         `(quote ,i)))
+                                               ,(type->sexp type))]
+                       [(struct-type-op sty)
+                        `(struct-type-op ,(type->sexp sty))]))
+     #`(register-type-constructor! #'#,id
+                                   (make-type-op #,constr^ #,arity #,productive? #:kind*? #,kind*?)))))
+
 ;; see 'finalize-signatures!' in 'env/signature-env.rkt',
 ;; which forces these delays after all the signatures are parsed
 (define (signature-env-init-code)
@@ -506,7 +534,8 @@
           (mvar-env-init-code mvar-env)
           (signature-env-init-code)
           (make-struct-table-code)
-          (struct-name-env-init)))
+          (struct-name-env-init)
+          (type-constructor-env-init)))
 
   ;; get the lifted common expressions for types which need to come first
   (list* (get-extra-type-definitions)

@@ -114,12 +114,17 @@
       ;; require/typed
       [r:typed-require
        (let ([t (add-extracted-props-to-lexical-env (-id-path #'r.name)
-                                                    (parse-type #'r.type))])
-         (register-type #'r.name t)
+                                                    (parse-type-or-type-constructor #'r.type))])
+
+         ((if (Type? t)
+              register-type
+              register-type-constructor!) #'r.name t)
          (list (make-def-binding #'r.name t)))]
 
       [r:typed-require/struct
-       (let* ([t (parse-type #'r.type)]
+       (let* ([t (if (untyped-struct-poly #'r.type)
+                     (lookup-type-alias #'r.type parse-type)
+                     (parse-type #'r.type))]
               [struct-type (lookup-type-name (Name-id t))]
               [mk-ty (match struct-type
                        [(Poly-names: ns body)

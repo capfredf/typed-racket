@@ -2095,7 +2095,7 @@
         (tc-e (sync (thread (λ () 0))) -Thread)
         (tc-e (sync (make-will-executor)) -Will-Executor)
         (tc-e (sync (make-custodian-box (current-custodian) 0))
-              (make-CustodianBox (-val 0)))
+              (-CustodianBox (-val 0)))
         (tc-e (sync ((inst make-channel String))) -String)
         (tc-e (sync (dynamic-place 'foo 'foo)) Univ)
         (tc-e (let-values ([(in out) (place-channel)])
@@ -2165,13 +2165,13 @@
         (tc-e (make-pseudo-random-generator) -Pseudo-Random-Generator)
         (tc-e (let: ((pg : Pseudo-Random-Generator (make-pseudo-random-generator)))
                 (pseudo-random-generator->vector pg))
-              (make-HeterogeneousVector (list -PosInt -PosInt -PosInt -PosInt -PosInt -PosInt)))
+              (-vec* -PosInt -PosInt -PosInt -PosInt -PosInt -PosInt))
         (tc-e (random 1 5 (make-pseudo-random-generator))
               -NonNegFixnum)
 
         ;Structure Type Properties
         (tc-e (make-struct-type-property 'prop)
-              (list (-poly (a) (make-Struct-Property a #f)) (t:-> Univ -Boolean) (t:-> Univ Univ)))        
+              (list (-poly (a) (make-Struct-Property a #f)) (t:-> Univ -Boolean) (t:-> Univ Univ)))
         (tc-e (let-values: ((((prop : (Struct-Property Any))
                               (pred : (Any -> Any)) (acc : (Any -> Any)))
                              (make-struct-type-property 'prop)))
@@ -3194,12 +3194,42 @@
                      (define a (list #f (list (list #f))))
                      (void))
              -Void]
+       [tc-e (let ()
+               (define-type-alias (a T U) (-> (b U)))
+               (define-type-alias (b T)   (-> (a T Integer)))
+               (define-type-alias (c T)   (a (c T) Number))
+               (void))
+             -Void]
        [tc-err (let () (define-type-alias A (Class #:implements A)) "dummy")
                #:msg "Recursive #:implements clause not allowed"]
        [tc-err (let () (define-type-alias X (U X #f)) "dummy")
                #:msg "recursive types are not allowed directly inside"]
        [tc-err (let () (define-type-alias X (All (A #:row) X)) "dummy")
                #:msg "recursive types are not allowed directly inside"]
+       [tc-err (let ()
+                 (define-type-alias (Dummy a) a)
+                 (define-type-alias C (Rec x (Dummy x)))
+                 (void))
+               #:msg "in a productive position"]
+       [tc-err (let ()
+                 (define-type-alias (D a b) a)
+                 (define-type-alias (F a) (D a))
+                 (void))
+               #:msg #px"expected: 2\\s+given: 1"]
+       [tc-err (let ()
+                 (define-type-alias (F x) (F x))
+                 (void))
+               #:msg #px"not in a productive position"]
+       [tc-err (let ()
+                 (define-type-alias (F x) (E x))
+                 (define-type-alias (E x) (F x))
+                 (void))
+               #:msg #px"not in a productive position"]
+       [tc-e (let ()
+                 (define-type-alias (F x) (E x))
+                 (define-type-alias (E x) (Listof (F x)))
+                 (void))
+              -Void]
 
        ;; Check the more precise Tarjan's algorithm-based letrec-values type checking
        [tc-e ;; An example from Eric Dobson (see gh372) that shows that precisely
@@ -3256,8 +3286,8 @@
              #:expected (tc-ret (-Tuple (list (-val 'y) (-val 'x))) #f #f)]
 
        [tc-err (vector 1 2)
-         #:ret (tc-ret (make-HeterogeneousVector (list -Byte -Byte)) -false-propset -empty-obj)
-         #:expected (tc-ret (make-HeterogeneousVector (list -Byte -Byte)) -false-propset #f)]
+         #:ret (tc-ret (-vec* -Byte -Byte) -false-propset -empty-obj)
+         #:expected (tc-ret (-vec* -Byte -Byte) -false-propset #f)]
 
        [tc-err (values 'x)
          #:ret (tc-ret (list -Symbol -Symbol))

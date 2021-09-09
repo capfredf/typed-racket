@@ -8,12 +8,16 @@
          "type-alias-env.rkt"
          "type-name-env.rkt"
          "../rep/type-rep.rkt"
+         "tvar-env.rkt"
          "../private/parse-type.rkt"
          "../typecheck/internal-forms.rkt"
          "../types/resolve.rkt"
          "../types/base-abbrev.rkt"
+         "../types/substitute.rkt"
          racket/list
          racket/match
+         racket/set
+         racket/function
          syntax/id-table
          syntax/parse
          (for-template
@@ -112,19 +116,16 @@
   ;; The second is necessary in order to prevent recursive
   ;; #:implements clauses and to determine the order in which
   ;; recursive type aliases should be initialized.
-  (define-values (type-alias-dependency-map type-alias-class-map)
-    (for/lists (_1 _2)
-      ([(name alias-info) (in-assoc type-alias-map)])
-      (define links-box (box null))
-      (define class-box (box null))
-      ;; parse types for effect
-      (parameterize ([current-type-alias-name name]
-                     [current-referenced-aliases links-box]
-                     [current-referenced-class-parents class-box]
-                     [check-type-invariants-while-parsing? #f])
-        (parse-type (car alias-info)))
+  (define-values (type-alias-dependency-map type-alias-class-map type-alias-productivity-map)
+    (for/lists (_1 _2 _3)
+               ([(name alias-info) (in-assoc type-alias-map)])
+      ;; (match-define (list _ args ))
+      (define-values (links classes productivity)
+        (parse-for-effects name (cons (cadr alias-info)
+                                      (car alias-info))))
+
       (define pre-dependencies
-        (remove-duplicates (unbox links-box) free-identifier=?))
+        (remove-duplicates links free-identifier=?))
       (define (filter-by-type-alias-names names)
         (for/list ([id (in-list names)]
                    #:when (memf (λ (id2) (free-identifier=? id id2))
@@ -133,9 +134,10 @@
       (define alias-dependencies
         (filter-by-type-alias-names pre-dependencies))
       (define class-dependencies
-        (filter-by-type-alias-names (unbox class-box)))
+        (filter-by-type-alias-names classes))
       (values (cons name alias-dependencies)
-              (cons name class-dependencies))))
+              (cons name class-dependencies)
+              (cons name productivity))))
 
   (define components
     (find-strongly-connected-type-aliases type-alias-dependency-map))
@@ -185,6 +187,7 @@
                                 free-identifier=?))
       alias))
 
+
   ;; Actually register recursive type aliases
   (define name-types
     (for/list ([id (in-list recursive-aliases)])
@@ -202,6 +205,8 @@
        id
        (if (null? args)
            (make-placeholder-type id)
+           ;; TODO: we should simply gather the names and put them into kind-related
+           ;; enviroment
            (make-Poly (map syntax-e args) (make-placeholder-type id))))
       name-type))
 
@@ -211,10 +216,19 @@
   ;; in topologically sorted order, so we want to go through in the
   ;; reverse order of that to avoid unbound type aliases.
   (for ([id (in-list acyclic-singletons)])
-    (define type-stx (cadr (assoc id type-alias-map)))
-    (register-resolved-type-alias id (parse-type type-stx)))
+    (match-define (list _ type-stx args) (assoc id type-alias-map))
+    (cond
+      [(not (null? args))
+       (define productive-b? (box #f))
+       (define ty-op (parse-type-operator-abstraction id args type-stx #f
+                                                      (make-immutable-free-id-table type-alias-productivity-map)))
+       (register-resolved-type-alias id ty-op)
+       (register-type-constructor! id ty-op)]
+      [else
+       (register-resolved-type-alias id (parse-type-or-type-constructor type-stx))]))
 
   ;; Clear the resolver cache of Name types from this block
+
   (define (reset-resolver-cache!) (resolver-cache-remove! name-types))
   (reset-resolver-cache!)
 
@@ -223,32 +237,63 @@
   (define (in-same-component? id id2)
     (for/or ([component (in-list (append components class-components))])
       (and (member id component free-identifier=?)
-           (member id2 component free-identifier=?))))
+           (member id2 component free-identifier=?)
+           #t)))
 
   ;; Finish registering recursive aliases
   ;; names-to-refine : Listof<Id>
   ;; types-to-refine : Listof<Type>
   ;; tvarss          : Listof<Listof<Symbol>>
-  (define-values (names-to-refine types-to-refine tvarss)
-    (for/lists (_1 _2 _3)
-      ([id (in-list (append other-recursive-aliases class-aliases))])
+  (define-values (type-records type-op-records)
+    (for/fold ([type-records null]
+               [type-op-records null]
+               #:result
+               (values (reverse type-records)
+                       (reverse type-op-records)))
+              ([id (in-list (append other-recursive-aliases class-aliases))])
       (define record (assoc id type-alias-map))
       (match-define (list _ type-stx args) record)
-      (define type
-        ;; make sure to reject the type if it uses polymorphic
-        ;; recursion (see resolve.rkt)
-        (parameterize ([current-check-polymorphic-recursion
-                        `#s(poly-rec-info ,(λ (id2) (in-same-component? id id2))
-                                          ,args)])
-          (parse-type type-stx)))
+      (if (null? args)
+          (values (cons record type-records)
+                  type-op-records)
+          (values type-records
+                  (cons record type-op-records)))))
+
+
+  (define-values (names-to-refine types-to-refine tvarss)
+    (for/lists (_1 _2 _3)
+               ([record (in-list type-records)])
+      (match-define (list id type-stx args) record)
+      ;; TODO try parse-type
+      (define type (parse-type type-stx (make-immutable-free-id-table type-alias-productivity-map)))
       (reset-resolver-cache!)
       (register-type-name id type)
-      (add-constant-variance! id args)
       (check-type-alias-contractive id type)
+      (add-constant-variance! id args)
       (values id type (map syntax-e args))))
 
-  ;; Finally, do a last pass to refine the variance
-  (refine-variance! names-to-refine types-to-refine tvarss))
+  ;; Finally, do a pass to refine the variance
+  (refine-variance! names-to-refine types-to-refine tvarss)
+
+  (define-values (productive undecided) (partition (lambda (record)
+                                                     (define a (car record))
+                                                     (equal? (cdr (assoc a type-alias-productivity-map free-identifier=?)) #t))
+                                                   type-op-records))
+
+  (let ([name-map (make-immutable-free-id-table type-alias-productivity-map)])
+    (for/list ([record (in-list (append productive
+                                    (sort undecided <
+                                          #:key (lambda (a)
+                                                  (length (assoc (car a) type-alias-dependency-map free-identifier=?))))))])
+      (match-define (list id type-stx args) record)
+      (define ty-op (parse-type-operator-abstraction id args type-stx
+                                                     (lambda (x)
+                                                       (define res (in-same-component? id x))
+                                                       res)
+                                                     name-map))
+      (register-type-constructor! id ty-op)
+      (reset-resolver-cache!)
+      (add-constant-variance! id args))))
 
 ;; Syntax -> Syntax Syntax (Listof Syntax)
 ;; Parse a type alias internal declaration
@@ -257,9 +302,9 @@
     #:literal-sets (kernel-literals)
     #:literals (values)
     [t:type-alias
-     (values #'t.name #'t.type (syntax-e #'t.args))]
+     (values #'t.name #'t.body (syntax-e #'t.params))]
     ;; this version is for `let`-like bodies
-    [(begin (quote-syntax (define-type-alias-internal nm ty args))
+    [(begin (quote-syntax (define-type-alias-internal nm body args))
             (#%plain-app values))
-     (values #'nm #'ty (syntax-e #'args))]
+     (values #'nm #'body (syntax-e #'args))]
     [_ (int-err "not define-type-alias")]))

@@ -22,11 +22,11 @@
          (for-template racket/base))
 
 (provide (all-defined-out)
-         (all-from-out "../rep/type-rep.rkt"
-                       "../rep/object-rep.rkt"
+         (all-from-out "../rep/object-rep.rkt"
                        "../rep/base-types.rkt"
                        "../rep/prop-rep.rkt"
-                       "../rep/numeric-base-types.rkt")
+                       "../rep/numeric-base-types.rkt"
+                       "../rep/type-rep.rkt")
          (rename-out [make-Listof -lst]
                      [make-MListof -mlst]))
 
@@ -55,7 +55,7 @@
     [else (unsafe-make-Mu (Un -Null (-Tuple* cycle (make-B 0))))]))
 
 ;; -Tuple Type is needed by substitute for ListDots
-(define -pair make-Pair)
+(define -pair (make-type-op make-Pair 2))
 (define (-lst* #:tail [tail -Null] . args)
   (for/fold ([tl tail]) ([a (in-list (reverse args))]) (-pair a tl)))
 (define (-Tuple l)
@@ -214,7 +214,7 @@
 (define (simple-> doms rng)
   (->* doms rng))
 
-(define (-Inter . ts)
+(define (-Inter-fun ts)
   (make-Intersection ts))
 
 (define (->acc dom rng path #:var [var (cons 0 0)])

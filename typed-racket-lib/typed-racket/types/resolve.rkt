@@ -37,6 +37,7 @@
 
 (define (resolve-name t)
   (match t
+    [(Name/simple: (app lookup-kind (? TypeConstructor? t))) t]
     [(Name/simple: (app lookup-type-name t)) (if (Type? t) t #f)]
     [_ (int-err "resolve-name: not a name ~a" t)]))
 
@@ -147,6 +148,7 @@
                                "\n  arguments...: " rands))])))
 
 
+
 (define (resolve-app rator rands [stx #f])
   (define orig-stx (or stx (current-orig-stx)))
   (parameterize ([current-orig-stx orig-stx]
@@ -155,7 +157,10 @@
     (match rator
       [(? Name?)
        (let ([r (resolve-name rator)])
-         (and r (resolve-app r rands stx)))]
+         (and r
+              (if (TypeConstructor? r)
+                  (apply r rands)
+                  (resolve-app r rands stx))))]
       [(? Poly?) (instantiate-poly rator rands)]
       [(? Mu?) (resolve-app (unfold rator) rands stx)]
       [(App: r r*) (resolve-app (resolve-app r r* (current-orig-stx))
