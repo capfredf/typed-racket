@@ -3203,9 +3203,9 @@
        [tc-err (let () (define-type-alias A (Class #:implements A)) "dummy")
                #:msg "Recursive #:implements clause not allowed"]
        [tc-err (let () (define-type-alias X (U X #f)) "dummy")
-               #:msg "recursive types are not allowed directly inside"]
+               #:msg "in a productive position"]
        [tc-err (let () (define-type-alias X (All (A #:row) X)) "dummy")
-               #:msg "recursive types are not allowed directly inside"]
+               #:msg "in a productive position"]
        [tc-err (let ()
                  (define-type-alias (Dummy a) a)
                  (define-type-alias C (Rec x (Dummy x)))

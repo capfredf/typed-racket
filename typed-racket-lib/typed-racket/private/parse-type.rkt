@@ -1242,15 +1242,15 @@
               (define alias-box (current-referenced-aliases))
               (match t
                 [(Name: _ _ is-struct?)
-                 (if is-struct?
-                     (current-type-op-productivity #t)
-                     (current-type-op-productivity (< INIT-LEVEL current-level)))]
+                 (current-type-op-productivity (or is-struct? (< INIT-LEVEL current-level)))]
                 [(struct* TypeConstructor ([productive? productive?]))
                  (current-type-op-productivity productive?)]
+                [(? Error?)
+                 (current-type-op-productivity (< INIT-LEVEL current-level))]
                 [_ (void)])
               (set-box! alias-box (cons #'id (unbox alias-box))))
             (define id-sym (syntax-e #'id))
-            (when (and (check-type-invariants-while-parsing?) mcfg (Name? t))
+            (when (and (check-type-invariants-while-parsing?) (Name? t))
               (define maybe-lvl (free-id-table-ref var-level-kind-env #'id #f))
               (when (and maybe-lvl (>= maybe-lvl current-level))
                 (parse-error "not in a productive position"

@@ -25,7 +25,6 @@
           racket/base))
 
 (provide find-strongly-connected-type-aliases
-         check-type-alias-contractive
          get-type-alias-info
          register-all-type-aliases
          parse-type-alias)
@@ -54,33 +53,6 @@
   (for/list ([component (in-list components)])
     (map vertex-data component)))
 
-;; check-type-alias-contractive : Id Type -> Void
-;;
-;; This function checks if the given type alias is
-;; "contractive" or "productive"
-;;   i.e., that you can unfold a good type like μx.int->x to
-;;         μx.int->int->int->...x but a type like
-;;         μx.x only unfolds to itself
-;;
-(define (check-type-alias-contractive id type)
-  (define/match (check type)
-    [((Union: _ ts)) (andmap check ts)]
-    [((Intersection: elems _)) (andmap check elems)]
-    [((Name/simple: name-id))
-     (and (not (free-identifier=? name-id id))
-          (check (resolve-once type)))]
-    [((App: rator rands))
-     (and (check rator) (check rands))]
-    [((Mu: _ body)) (check body)]
-    [((Poly: names body)) (check body)]
-    [((PolyDots: names body)) (check body)]
-    [((PolyRow: _ body _)) (check body)]
-    [(_) #t])
-  (unless (check type)
-    (tc-error/fields
-     "parse error in type"
-     #:stx id
-     #:more "recursive types are not allowed directly inside their definition")))
 
 ;; get-type-alias-info : Listof<Syntax> -> Listof<Id> Dict<Id, TypeAliasInfo>
 ;;
@@ -268,7 +240,6 @@
       (define type (parse-type type-stx (make-immutable-free-id-table type-alias-productivity-map)))
       (reset-resolver-cache!)
       (register-type-name id type)
-      (check-type-alias-contractive id type)
       (add-constant-variance! id args)
       (values id type (map syntax-e args))))
 
