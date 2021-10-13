@@ -23,7 +23,7 @@ TR opt: marketplace-struct.rkt 133:35 (process-endpoints p) -- struct ref
 END
 ""
 #lang typed/racket/base
-#reader typed-racket-test/optimizer/reset-port
+;; #reader typed-racket-test/optimizer/reset-port
 
 ;; excerpt from marketplace
 ;; a struct constructor logging bug was causing this to fail
@@ -61,7 +61,7 @@ END
 
 
 
-(struct: vm ([processes : (HashTable PID Process)]
+(struct: (State State2) vm ([processes : (HashTable PID (Process State State2))]
 	     [next-process-id : PID])
 	 #:transparent)
 
@@ -84,17 +84,17 @@ END
 	      [pre-eid : Any])
 	 #:transparent)
 
-(define-type Process		(All (R) (CoProcess R) -> R))
-(define-type (CoProcess R)	(All (State) (process State) -> R))
+(define-type (Process R X)		(-> (CoProcess R X) X))
+(define-type (CoProcess R X)    (-> (process R) X))
 
-(: mkProcess : (All (State) ((CoProcess Process) State)))
+(: mkProcess : (All (S1 S2) (CoProcess S1 (Process S1 S2))))
 ;; A kind of identity function, taking the components of a process to
 ;; a process.
 (define (mkProcess p)
-  (lambda (k) ((inst k State) p)))
+  (lambda (k) (k p)))
 
-(: Process-pid : Process -> PID)
-(define (Process-pid wp) ((inst wp PID) process-pid))
+(: Process-pid : (All (R) (Process R PID) -> PID))
+(define (Process-pid wp) (wp (inst process-pid R)))
 
 ;; Unwraps a process. Result is the type of the result of the
 ;; expression; State is a type variable to be bound to the process's
@@ -110,28 +110,29 @@ END
 
 ;;---------------------------------------------------------------------------
 
-(: make-vm : process-spec -> vm)
+(: make-vm : process-spec -> (vm Void PID))
 (define (make-vm boot)
-  (define primordial (mkProcess ((inst process Void)
-				 '#:primordial
-				 -1
-				 (void)
-				 (list)
-				 #hash()
-				 #hash())))
-  (vm (hash-set (ann #hash() (HashTable PID Process))
-		(Process-pid primordial)
+  (define primordial ((inst mkProcess Void PID)
+                      ((inst process Void)
+                       '#:primordial
+                       -1
+                       (void)
+                       (list)
+                       #hash()
+                       #hash())))
+  (vm (hash-set (ann #hash() (HashTable PID (Process Void PID)))
+                ((inst Process-pid Void) primordial)
 		primordial)
       0))
 
-(: inject-process : vm Process -> vm)
+(: inject-process (All (s1 s2) (-> (vm s1 s2) (Process s1 PID) (vm s1 s2))))
 (define (inject-process state wp)
   (struct-copy vm state [processes (hash-set (vm-processes state) (Process-pid wp) wp)]))
 
 (: always-false : -> False)
 (define (always-false) #f)
 
-(: extract-process : vm PID -> (values vm (Option Process)))
+(: extract-process (All (s1 s2) (-> (vm s1 s2) PID (values (vm s1 s2) (Option (Process s1 s2))))))
 (define (extract-process state pid)
   (define wp (hash-ref (vm-processes state) pid always-false))
   (values (if wp
@@ -139,25 +140,25 @@ END
 	      state)
 	  wp))
 
-(: process-map : (All (State) (process State) -> (process State)) vm -> vm)
+(: process-map (All (s1 s2) (-> (All (State) (process State) -> (process State)) (vm s1 s2) (vm s1 s2))))
 (define (process-map f state)
   (for/fold ([state state]) ([pid (in-hash-keys (vm-processes state))])
     (let-values (((state wp) (extract-process state pid)))
       (if (not wp)
-	  state
-	  (unwrap-process State vm (p wp)
-	    (inject-process state (mkProcess (f p))))))))
+          state
+          (unwrap-process State (vm s1 s2) (p wp)
+            (inject-process state (mkProcess (f p))))))))
 
-(: endpoint-fold : (All (A) (All (State) (process State) (endpoint State) A -> A) A vm -> A))
-(define (endpoint-fold f seed state)
-  (for/fold ([seed seed]) ([pid (in-hash-keys (vm-processes state))])
-    (let-values (((state wp) (extract-process state pid)))
-      (if (not wp)
-	  seed
-	  (unwrap-process State A (p wp)
-	    (for/fold ([seed seed]) ([pre-eid (in-hash-keys (process-endpoints p))])
-	      (define ep (hash-ref (process-endpoints p) pre-eid))
-	      ((inst f State) p ep seed)))))))
+;; (: endpoint-fold : (All (A) (All (State) (process State) (endpoint State) A -> A) A vm -> A))
+;; (define (endpoint-fold f seed state)
+;;   (for/fold ([seed seed]) ([pid (in-hash-keys (vm-processes state))])
+;;     (let-values (((state wp) (extract-process state pid)))
+;;       (if (not wp)
+;; 	  seed
+;; 	  (unwrap-process State A (p wp)
+;; 	    (for/fold ([seed seed]) ([pre-eid (in-hash-keys (process-endpoints p))])
+;; 	      (define ep (hash-ref (process-endpoints p) pre-eid))
+;; 	      ((inst f State) p ep seed)))))))
 
 ;;; Local Variables:
 ;;; eval: (put 'unwrap-process 'scheme-indent-function 3)
