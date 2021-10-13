@@ -25,7 +25,6 @@
           racket/base))
 
 (provide find-strongly-connected-type-aliases
-         get-type-alias-info
          register-all-type-aliases
          parse-type-alias)
 
@@ -54,17 +53,18 @@
     (map vertex-data component)))
 
 
-;; get-type-alias-info : Listof<Syntax> -> Listof<Id> Dict<Id, TypeAliasInfo>
+;; register-all-type-aliases : Listof<Syntax> -> Void
 ;;
-;; Given the syntaxes representing type alias definitions, return
-;; the information needed to register them later
-(define (get-type-alias-info type-aliases)
-  (for/lists (_1 _2) ([type-alias (in-list type-aliases)])
-    (define-values (id type-stx args) (parse-type-alias type-alias))
-    ;; Register type alias names with a dummy value so that it's in
-    ;; scope for the registration later.
-    (register-resolved-type-alias id Err)
-    (values id (list id type-stx args))))
+;; register all type alias definitions carried by the input syntaxes
+(define (register-all-type-aliases type-aliases)
+  (define-values (type-alias-names type-alias-map)
+    (for/lists (_1 _2) ([type-alias (in-list type-aliases)])
+      (define-values (id type-stx args) (parse-type-alias type-alias))
+      ;; Register type alias names with a dummy value so that it's in
+      ;; scope for the registration later.
+      (register-resolved-type-alias id Err)
+      (values id (list id type-stx args))))
+  (register-all-type-alias-info type-alias-names type-alias-map))
 
 ;; Identifier -> Type
 ;; Construct a fresh placeholder type
@@ -77,7 +77,7 @@
 ;; of actually registering the type aliases. If struct names or
 ;; other definitions need to be registered, do that before calling
 ;; this function.
-(define (register-all-type-aliases type-alias-names type-alias-map)
+(define (register-all-type-alias-info type-alias-names type-alias-map)
   ;; Find type alias dependencies
   ;; The two maps defined here contains the dependency structure
   ;; of type aliases in two senses:

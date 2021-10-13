@@ -429,9 +429,6 @@
   (for ([sig-form (in-list signature-defs)])
     (parse-and-register-signature! sig-form))
 
-  (define-values (type-alias-names type-alias-map)
-    (get-type-alias-info type-aliases))
-
   ;; Add the struct names to the type table, but not with a type
   (let ([names (map name-of-struct struct-defs)]
         [type-vars (map type-vars-of-struct struct-defs)])
@@ -443,7 +440,8 @@
     (for-each add-constant-variance! names type-vars))
   (do-time "after adding type names")
 
-  (register-all-type-aliases type-alias-names type-alias-map)
+  (register-all-type-aliases type-aliases)
+
   (finalize-signatures!)
 
   (do-time "starting struct handling")
@@ -668,9 +666,7 @@
 (define (tc-toplevel-form form)
   ;; Handle type aliases
   (when (type-alias? form)
-    (define-values (alias-names alias-map)
-      (get-type-alias-info (list form)))
-    (register-all-type-aliases alias-names alias-map))
+    (register-all-type-aliases (list form)))
   ;; Handle struct definitions
   (cond
     ;; some expanded forms from a struct defintions must be delayed to check.
