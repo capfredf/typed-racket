@@ -194,10 +194,12 @@
        (define productive-b? (box #f))
        (define ty-op (parse-type-operator-abstraction id args type-stx #f
                                                       (make-immutable-free-id-table type-alias-productivity-map)))
-       (register-resolved-type-alias id ty-op)
        (register-type-constructor! id ty-op)]
       [else
-       (register-resolved-type-alias id (parse-type-or-type-constructor type-stx))]))
+       (define rv (parse-type-or-type-constructor type-stx))
+       ((if (TypeConstructor? rv)
+            register-type-constructor!
+            register-resolved-type-alias) id rv)]))
 
   ;; Clear the resolver cache of Name types from this block
 
