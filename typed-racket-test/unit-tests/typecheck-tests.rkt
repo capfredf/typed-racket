@@ -435,11 +435,13 @@
               (-is-type var (-val #f)))
          (make-Path null var))))
 
-(define tests
-  (test-suite
-    "Typechecker tests"
+(define-syntax-rule (parallel-ts name testcase ...)
+  (list (test-suite "aaa" testcase) ...))
+
+(define all-tests
+  (append
     #reader typed-racket/typed-reader
-      (test-suite
+      (parallel-ts
         "tc-expr tests"
 
         [tc-e
@@ -5429,7 +5431,7 @@
        )
       (if (extflonum-available?)
 
-          (test-suite
+          (parallel-ts
            "extflonum tests"
            (tc-e/t ;; Github issue #115
             (let ([x : ExtFlonum 5.0t1])
@@ -5471,9 +5473,9 @@
            (tc-l -5.0t0 -NegExtFlonum)
            (tc-l -5.1t0 -NegExtFlonum))
 
-          (test-suite "extflonum tests"))
+          (list))
 
-  (test-suite
+  (parallel-ts
    "tc-literal tests"
    (tc-l 5 -PosByte)
    (tc-l -5 -NegFixnum)
@@ -5529,7 +5531,7 @@
          #:expected (-prefab 'foo (-opt -String))]
    )
 
-   (test-suite
+   (parallel-ts
     "type-table tests"
     ;; tc-app-apply
     (tc/type-table (apply values '(0))
@@ -5634,3 +5636,6 @@
                               (-values -String -true-propset -empty-obj))]))
    )
   ))
+
+(provide all-tests)
+(define tests (make-test-suite "typecheck-tests" all-tests))
