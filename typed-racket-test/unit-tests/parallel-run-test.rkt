@@ -2,8 +2,65 @@
 (require racket/match rackunit rackunit/text-ui racket/place racket/list syntax/location
          rackunit/private/format)
 
-(require (only-in "typecheck-tests.rkt" [tests tt:tests])
-         (only-in "subtype-tests.rkt" [tests st:tests]))
+(require (only-in "typecheck-tests.rkt" [tests typecheck-tests])
+         (only-in "subtype-tests.rkt" [tests subtype-tests])
+         (only-in "type-equal-tests.rkt" [tests type-equal-tests])
+         (only-in "remove-intersect-tests.rkt" [tests remove-intersect-tests])
+         (only-in "static-contract-conversion-tests.rkt" [tests static-contract-conversion-tests])
+         (only-in "static-contract-instantiate-tests.rkt" [tests static-contract-instantiate-tests])
+         (only-in "static-contract-optimizer-tests.rkt" [tests static-contract-optimizer-tests])
+         (only-in "parse-type-tests.rkt" [tests parse-type-tests])
+         (only-in "subst-tests.rkt" [tests subst-tests])
+         (only-in "infer-tests.rkt" [tests infer-tests])
+         (only-in "keyword-expansion-test.rkt" [tests keyword-expansion-test])
+         (only-in "special-env-typecheck-tests.rkt" [tests special-env-typecheck-tests])
+         (only-in "contract-tests.rkt" [tests contract-tests])
+         (only-in "interactive-tests.rkt" [tests interactive-tests])
+         (only-in "type-printer-tests.rkt" [tests type-printer-tests])
+         (only-in "type-alias-helper.rkt" [tests type-alias-helper])
+         (only-in "class-tests.rkt" [tests class-tests])
+         (only-in "class-util-tests.rkt" [tests class-util-tests])
+         (only-in "check-below-tests.rkt" [tests check-below-tests])
+         (only-in "init-env-tests.rkt" [tests init-env-tests])
+         (only-in "prop-tests.rkt" [tests prop-tests])
+         (only-in "metafunction-tests.rkt" [tests metafunction-tests])
+         (only-in "generalize-tests.rkt" [tests generalize-tests])
+         (only-in "prims-tests.rkt" [tests prims-tests])
+         (only-in "tooltip-tests.rkt" [tests tooltip-tests])
+         (only-in "prefab-tests.rkt" [tests prefab-tests])
+         (only-in "json-tests.rkt" [tests json-tests])
+         (only-in "typed-units-tests.rkt" [tests typed-units-tests])
+         (only-in "type-constr-tests.rkt" [tests type-constr-tests]))
+
+(define unit-tests (list typecheck-tests
+                           subtype-tests
+                           type-equal-tests
+                           remove-intersect-tests
+                           static-contract-conversion-tests
+                           static-contract-instantiate-tests
+                           static-contract-optimizer-tests
+                           parse-type-tests
+                           subst-tests
+                           infer-tests
+                           keyword-expansion-test
+                           special-env-typecheck-tests
+                           contract-tests
+                           interactive-tests
+                           type-printer-tests
+                           type-alias-helper
+                           class-tests
+                           class-util-tests
+                           check-below-tests
+                           init-env-tests
+                           prop-tests
+                           metafunction-tests
+                           generalize-tests
+                           prims-tests
+                           tooltip-tests
+                           prefab-tests
+                           json-tests
+                           typed-units-tests
+                           type-constr-tests))
 
 
 (require racket/runtime-path)
@@ -19,54 +76,23 @@
       (if (equal? a 'over)
           (place-channel-put aa (list success failure err))
           (let ()
-            (define results (run-test (dynamic-require (build-path src-dir a) 'tests)))
+            (define results (run-test (list-ref unit-tests a)))
             (for/fold ([success success]
                        [failure failure]
                        [err err]
                        #:result (loop success failure err))
                       ([r (in-list results)])
-              (display-test-result r #:suite-names (list (path->string (build-path src-dir a))))
+              (display-test-result r)
               (cond
                 [(test-success? r) (values (add1 success) failure err)]
                 [(test-failure? r) (values success (add1 failure) err)]
                 [else (values success failure (add1 err))])))))))
 
-(define unit-tests (list
-                    "typecheck-tests.rkt"
-                    "subtype-tests.rkt"
-                    "type-equal-tests.rkt"
-                    "remove-intersect-tests.rkt"
-                    "static-contract-conversion-tests.rkt"
-                    "static-contract-instantiate-tests.rkt"
-                    "static-contract-optimizer-tests.rkt"
-                    "parse-type-tests.rkt"
-                    "subst-tests.rkt"
-                    "infer-tests.rkt"
-                    "keyword-expansion-test.rkt"
-                    "special-env-typecheck-tests.rkt"
-                    "contract-tests.rkt"
-                    "interactive-tests.rkt"
-                    "type-printer-tests.rkt"
-                    "type-alias-helper.rkt"
-                    "class-tests.rkt"
-                    "class-util-tests.rkt"
-                    "check-below-tests.rkt"
-                    "init-env-tests.rkt"
-                    "prop-tests.rkt"
-                    "metafunction-tests.rkt"
-                    "generalize-tests.rkt"
-                    "prims-tests.rkt"
-                    "tooltip-tests.rkt"
-                    "prefab-tests.rkt"
-                    "json-tests.rkt"
-                    "typed-units-tests.rkt"
-                    "type-constr-tests.rkt"
-                    ))
 (define (prun2 p)
   (define-values (put-ch get-ch) (place-channel))
   (define n-workers p)
   (define workers (build-list n-workers (lambda (id) (start2 get-ch id))))
-  (for/list ([i (in-list unit-tests)])
+  (for/list ([(_ i) (in-indexed unit-tests)])
     (place-channel-put put-ch i))
   (for ([w (in-list workers)])
     (place-channel-put put-ch 'over))
@@ -74,7 +100,8 @@
   (for/fold ([success 0]
              [failure 0]
              [err 0]
-             #:result (printf "success (~a), failure (~a), errror (~a)~n" success failure err))
+             #:result (printf "~a success(es) ~a failure(s) ~a error(s) ~a test(s) run ~n"
+                              success failure err (+ success failure err)))
             ([w (in-list workers)])
     (match-define (list s f e) (place-channel-get w))
     (values (+ s success)
