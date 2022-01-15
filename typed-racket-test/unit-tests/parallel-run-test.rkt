@@ -42,6 +42,17 @@
       (if (equal? a 'over) #t
           (begin (run-tests (dynamic-require (build-path src-dir a) 'tests))
                  (loop))))))
+
+(define (start2-1 name)
+  (place/context aa
+    ;;(eprintf "aa ~a ~n" (place-channel-get aa))
+    (run-tests (dynamic-require (build-path src-dir name) 'tests))
+    #;
+    (let loop ()
+      [define a (place-channel-get get-ch)]
+      (if (equal? a 'over) #t
+          (begin
+                 (loop))))))
 #;
 (define (prun)
   (define-values (put-ch get-ch) (place-channel))
@@ -87,18 +98,17 @@
                     "json-tests.rkt"
                     "typed-units-tests.rkt"
                     "type-constr-tests.rkt"))
-(define (prun2)
+(define (prun2 p)
   (define-values (put-ch get-ch) (place-channel))
-  (define n-workers 16)
-  (define workers (build-list n-workers (lambda n (start2 get-ch n))))
-  (eprintf "....~a ~n" 10)
+  (define n-workers p)
+  (define workers (build-list n-workers (lambda (id) (start2 get-ch id))))
   (for/list ([i (in-list unit-tests)])
     (place-channel-put put-ch i))
-  (eprintf "....~a ~n" 42)
   (for ([w (in-list workers)])
     (place-channel-put put-ch 'over))
-  (eprintf "....~a ~n" 24)
   (for ([w (in-list workers)])
     (place-wait w)))
+(require racket/cmdline)
 (module+ main
-  (time (prun2)))
+  (command-line #:args (p)
+                (time (prun2 (string->number p)))))
