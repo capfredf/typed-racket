@@ -712,10 +712,14 @@ the typed racket language.
          [type-vars (from-plambda-property formals #t)]
          [else formals]))
 
-     (define d (with-syntax ([erase-formals (maybe-set-from-lambda
-                                             (attribute vars.type-vars)
-                                             (attribute formals.erased))])
-                 (syntax/loc stx (λ erase-formals e ... last-e*))))
+     #;(eprintf "non-kwarg-names ~a ~n" (attribute formals.non-kwarg-names))
+     #;(eprintf "~n formals ~a ~n" #'formals)
+     (define d (orig-param-property
+                (with-syntax ([erase-formals (maybe-set-from-lambda
+                                              (attribute vars.type-vars)
+                                              (attribute formals.erased))])
+                  (syntax/loc stx (λ erase-formals e ... last-e*)))
+                (attribute formals.non-kwarg-names)))
      (define d/prop
        (if (attribute formals.kw-property)
            (kw-lambda-property d (attribute formals.kw-property))
@@ -788,6 +792,8 @@ the typed racket language.
          [(-lambda formals . others)
           (quasisyntax/loc stx (-lambda #,@(syntax vars) formals . others))]
          [_ rhs]))
+     #;(eprintf "define-id ~a ~n" defined-id)
+     #;(eprintf "rhs* ~a ~n" rhs*)
      (quasisyntax/loc stx (define #,defined-id #,rhs*))]))
 
 (define-syntax (with-asserts stx)

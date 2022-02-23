@@ -30,6 +30,7 @@
          racket/list
          racket/private/class-internal
          syntax/parse
+         syntax/stx
          "internal-forms.rkt"
          "tc-envops.rkt"
          racket/sequence
@@ -277,7 +278,35 @@
       [(#%plain-lambda formals . body)
        (tc/lambda form #'(formals) #'(body) expected)]
       [(case-lambda [formals . body] ...)
-       (tc/lambda form #'(formals ...) #'(body ...) expected)]
+       (define orig-names (orig-param-property form))
+       (match orig-names
+         [(or (? null?) #f)  (tc/lambda form #'(formals ...) #'(body ...) expected)]
+         [(list-rest args ... rest-arg)
+          ;; (eprintf "args ~a ~a ~n" args orig-names)
+          (define formal-li-stx
+            (datum->syntax
+             #'(formals ...)
+             (for/list ([formals (in-syntax #'(formals ...))])
+               (syntax-parse formals
+                 [() #'()]
+                 [(fa ... . fr)
+                  (define len (length (syntax->list #'(fa ...))))
+                  (append (stx-map (lambda (a b)
+                                     (eprintf "label ~a : ~a ~n" b (type-label-property b))
+                                     (type-label-property a (type-label-property b)))
+                                   #'(fa ...)
+                                   (take args len))
+                          (if (stx-null? #'fr)
+                              null
+                              (type-label-property #'fr (type-label-property rest-arg))))]))))
+          (tc/lambda form formal-li-stx #'(body ...) expected)])
+       ;; (define real-arg-names (syntax-property form 'real-arg-names))
+       ;; (define )
+       ;; (for/list ([f (in-syntax #'(formals ...))])
+       ;;   (syntax-parse f
+       ;;     [() #'()]
+       ;;     [(a . b) (type-label)]))
+      ]
       ;; send
       [(let-values ([(_) meth])
          (let-values ([(rcvr-var) rcvr])
@@ -339,7 +368,15 @@
                           (syntax->datum #'(all-kw ...))))]
       [(~and opt:opt-lambda^
              (let-values ([(f) fun])
-               (case-lambda (formals . cl-body) ...)))
+               (~and (case-lambda (formals . cl-body) ...) body)))
+       #;(eprintf "~n orig ~a ~n" (orig-param-property form))
+       (define body^ (plambda-property
+                      (orig-param-property #'body (orig-param-property form))
+                      (plambda-property form)))
+       (tc/let-values #'((f)) #`(#,(plambda-property #'fun (plambda-property form)))
+                      #`(#,body^)
+                      expected)
+       #;#;
        (define p (plambda-property form))
        (ret (opt-unconvert (tc-expr/t (plambda-property #'fun p))
                            (syntax->list #'(formals ...))))]
@@ -414,6 +451,7 @@
   (define any-res (-tc-any-results #f))
   (define exps (syntax->list body))
   (let loop ([exps exps])
+    #;(eprintf "exps is ~a ~n" exps)
     (match exps
       [(list tail-exp) (tc-expr/check tail-exp expected)]
       [(cons e rst)

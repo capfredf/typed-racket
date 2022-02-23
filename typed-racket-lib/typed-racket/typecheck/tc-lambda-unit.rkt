@@ -294,8 +294,9 @@
       (define arg-types^ (list-update arg-types (sub1 (length
                                                        arg-types))
                                       (lambda (ty) (make-Listof ty))))
+      #;(eprintf "arg-types^ ~a ~n" arg-types^)
       (-Arrow
-       arg-types
+       arg-types^
        (abstract-results
         (with-extended-lexical-env
           [#:identifiers arg-list

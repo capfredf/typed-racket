@@ -1,6 +1,7 @@
 #lang racket/base
 
 (require syntax/parse/pre
+         racket/sequence
          racket/private/immediate-default
          "../private/parse-classes.rkt"
          "../private/syntax-properties.rkt"
@@ -188,10 +189,11 @@
   (pattern (~seq) #:attr type-vars #f))
 
 (define-splicing-syntax-class kw-formal
-  #:attributes (form id default type kw)
+  #:attributes (form id default type kw annotated-id)
   #:literal-sets (colon)
   (pattern (~seq kw:keyword id:id)
            #:with form #'(kw id)
+           #:attr annotated-id #'id
            #:attr default #f
            #:attr type #f)
   (pattern (~seq kw:keyword [id:id default:expr])
@@ -199,41 +201,47 @@
                            (optional-immediate-arg-property #'id #true)
                            (optional-non-immediate-arg-property #'id #true))
            #:with form #`(kw [i-id default])
+           #:attr annotated-id #'i-id
            #:attr type #f)
   (pattern (~seq kw:keyword [id:id : type:expr])
            #:with form #`(kw #,(type-label-property #'id #'type))
+           #:with (_ annotated-id) #'form
            #:attr default #f)
   (pattern (~seq kw:keyword [id:id : type:expr default:expr])
            #:with t-id (type-label-property #'id #'type)
            #:with i-id (if (immediate-default? #'default)
                            (optional-immediate-arg-property #'t-id #true)
                            (optional-non-immediate-arg-property #'t-id #true))
+           #:attr annotated-id #'i-id
            #:with form #`(kw [i-id default])))
 
 (define-splicing-syntax-class mand-formal
   #:description "lambda argument"
-  #:attributes (form id default type kw)
+  #:attributes (form id default type kw annotated-id)
   #:literal-sets (colon)
   (pattern id:id
            #:with form #'(id)
+           #:attr annotated-id #'id
            #:attr default #f
            #:attr type #f
            #:attr kw #f)
   (pattern [id:id : type:expr]
            #:with form #`(#,(type-label-property #'id #'type))
+           #:with (annotated-id) #'form
            #:attr default #f
            #:attr kw #f)
   (pattern :kw-formal))
 
 (define-splicing-syntax-class opt-formal
   #:description "optional lambda argument"
-  #:attributes (form id default type kw)
+  #:attributes (form id default type kw annotated-id)
   #:literal-sets (colon)
   (pattern [id:id default:expr]
            #:with form #`([#,(if (immediate-default? #'default)
                                  (optional-immediate-arg-property #'id #t)
                                  (optional-non-immediate-arg-property #'id #t))
                            default])
+           #:with ([annotated-id _]) #'form
            #:attr type #f
            #:attr kw #f)
   (pattern [id:id : type:expr default:expr]
@@ -242,6 +250,7 @@
                                    (optional-immediate-arg-property t-id #t)
                                    (optional-non-immediate-arg-property t-id #t)))
                            default])
+           #:with ([annotated-id _]) #'form
            #:attr kw #f)
   (pattern :kw-formal))
 
@@ -265,10 +274,20 @@
                         #t)))
 
 (define-syntax-class lambda-formals
-  #:attributes (opt-property kw-property erased)
+  #:attributes (opt-property kw-property erased non-kwarg-names)
   (pattern (~or (mand:mand-formal ... opt:opt-formal ... . rest:rest-arg)
                 (~and (mand:mand-formal ... opt:opt-formal ...)
                       (~bind [rest.form #'()])))
+           #:attr non-kwarg-names
+           (let ()
+             #;(eprintf "rest is ~a ~n" (attribute rest.form))
+             (append (attribute mand.annotated-id)
+                     (attribute opt.annotated-id)
+                     (attribute rest.form))
+             #;
+             (append (syntax->list #'(mand.annotated-id ...))
+                     (syntax->list #'(opt.annotated-id ...))
+                     (syntax->list #'rest.form)))
            #:attr kw-property
            ;; separate raw keywords into mandatory and optional and
            ;; put them in a struct for later use by tc-expr

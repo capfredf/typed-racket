@@ -384,6 +384,7 @@
          ;; all the trailing expressions - the ones actually bound to the names
          [exprs (syntax->list exprs)])
 
+    #;(eprintf "..................~a ~n" exprs)
     (register-aliases-and-declarations namess exprs)
 
     ;; the annotated types of the name (possibly using the inferred types)

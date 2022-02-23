@@ -70,6 +70,7 @@
   (exn-handlers typechecker:exn-handlers #:mark)
   (struct-info struct-info)
   (rst-arg rst-arg)
+  (orig-param orig-param)
   (opt-lambda opt-lambda)
   (kw-lambda kw-lambda)
   ; mark syntax objects for formal parameters in polymorphic lambdas forms.
